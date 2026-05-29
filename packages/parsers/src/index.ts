@@ -6,3 +6,5 @@ export { parseRcbExport } from "./web/russiancraftbeer.ts";
 export type { RcbParseResult, RcbBrewery, RcbVenue, RcbBeer } from "./web/russiancraftbeer.ts";
 export { parseBreweryReleases } from "./telegram/rewort-release.ts";
 export type { BreweryRelease } from "./telegram/rewort-release.ts";
+export { untappdWebParser, parseUntappdBeerList } from "./untappd/untappd-web.ts";
+export type { UntappdBeer } from "./untappd/untappd-web.ts";

@@ -188,3 +188,16 @@ data/discovery/batch-2026-05-29.json, scripts/seed-breweries.ts (переисп�
 пивоварне канал/метод/дата/newestId/oldestId/sortsIngested/status. Следующий проход
 читает newestId и берёт только посты новее → инкрементальное обновление. Источник-
 данные сохранены: data/ingest/sorts-2026-05-29/g*.json. Скрипт scripts/ingest-sorts.ts.
+
+## [2026-05-29] ingest | Дрейф-каналы решены через Untappd: +75 сортов (task-13)
+Инкрементальный проход по TG дал 0 новых постов (та же дата — норма, петля исправна).
+Разобрался с тремя дрейф-каналами (@jawsbrewery/@hopheadbrewery/@petzold_brewpub):
+их веб-превью t.me/s закрыто целиком — отдаёт визитку, не ленту (embed постов тоже
+закрыт), так что caption-парсить нечего. Решение — параллельный источник **Untappd**:
+публичные страницы пивоварни /beer отдают структурированный список (имя/стиль/ABV/IBU/
+описание) на raw-fetch (HTTP 200). Новый парсер untappdWebParser/parseUntappdBeerList
+(packages/parsers/src/untappd/) + scripts/ingest-untappd.ts (мэппинг slug→URL в MAP,
+идемпотентный апсерт, аддитивный блок `untappd` в хинтах). По 25 сортов на пивоварню
+(упёрлись в первую страницу Untappd — AJAX-догрузка остатка не реализована, статус
+ok-untappd-capped). Каталог 280→355 сортов. ingest-sorts.ts доработан: мержит хинты,
+не затирая блок untappd. Дальше: расширять MAP для ~40 пивоварен без TG.

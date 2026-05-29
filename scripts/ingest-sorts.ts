@@ -40,11 +40,17 @@ if (await Bun.file(CHANNELS).exists()) {
 }
 
 const db = openDb(DB_PATH);
+// прежние хинты — чтобы не затереть данные из других источников (напр. блок `untappd`,
+// см. scripts/ingest-untappd.ts) при перегенерации TG-хинтов.
+const prevHints: Record<string, any> = (await Bun.file("data/ingest-hints.json").exists())
+  ? (JSON.parse(await Bun.file("data/ingest-hints.json").text()).breweries ?? {})
+  : {};
 const hints: Record<string, unknown> = {};
 let total = 0;
 
-// все пивоварни с каналом этого прохода + те, у кого извлекли сорта
-const slugs = new Set<string>([...Object.keys(channels), ...Object.keys(bySlug)]);
+// все пивоварни с каналом этого прохода + те, у кого извлекли сорта + ранее известные
+// (чтобы не выкинуть из хинтов пивоварни из других источников, напр. untappd-only)
+const slugs = new Set<string>([...Object.keys(prevHints), ...Object.keys(channels), ...Object.keys(bySlug)]);
 for (const slug of slugs) {
   const row = db.query("SELECT id, name FROM breweries WHERE slug = ?").get(slug) as { id: string; name: string } | null;
   const sorts = bySlug[slug] ?? [];
@@ -66,19 +72,24 @@ for (const slug of slugs) {
   total += ingested;
 
   const c = channels[slug];
+  const prev = prevHints[slug] ?? {};
   hints[slug] = {
     brewery: row?.name ?? slug,
-    channel: c?.handle ?? null,
-    channelUrl: c?.channelUrl ?? null,
+    channel: c?.handle ?? prev.channel ?? null,
+    channelUrl: c?.channelUrl ?? prev.channelUrl ?? null,
     method: "tg-web-preview (t.me/s) + agentic-extract",
     lastRun: seenAt,
     pages: c?.pages ?? null,
     messagesSeen: c?.messagesSeen ?? null,
-    newestId: c?.newestId ?? null,   // для инкрементального прохода: брать посты новее
+    newestId: c?.newestId ?? prev.newestId ?? null,   // для инкрементального прохода: брать посты новее
     oldestId: c?.oldestId ?? null,   // докуда дочитали назад в этом проходе
     sortsIngested: ingested,
     status: c?.status ?? (row ? "ok" : "no-brewery"),
-    note: c?.status === "no-feed" ? "0 текст. сообщений через t.me/s — медиа-посты/иная разметка (дрейф); нужен caption/VK" : undefined,
+    // сохраняем блок другого источника (untappd) и его пояснение, если он был
+    ...(prev.untappd ? { untappd: prev.untappd } : {}),
+    note: prev.untappd
+      ? prev.note
+      : c?.status === "no-feed" ? "0 текст. сообщений через t.me/s — медиа-посты/иная разметка (дрейф); нужен caption/VK" : undefined,
   };
 }
 
