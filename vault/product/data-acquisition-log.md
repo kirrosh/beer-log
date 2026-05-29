@@ -43,6 +43,12 @@
   `data/top-breweries-report.md`. Топ-список: AF Brew, Бакунин, Stamm, Zagovor,
   Selfmade, Jaws, Salden's, Victory Art Brew, Konix, 4 Brewers, Plan B, Big Village,
   Brewlok, HopHead, 1516, Lighthouse. (+ Rewort обогащён ранее.)
+- **Сорта из офиц. каналов (task-13): 28 сортов из 6 TG-каналов** (AF Brew, Brewlok,
+  Selfmade, Salden's, Zagovor, Big Village), статус validated, провенанс на канал,
+  стили по таксономии. Извлечено **агентно** (формат релиза у каждой пивоварни свой —
+  regex `parseBreweryReleases` не генерализуется). Скрипт `scripts/ingest-brewery-channels.ts`,
+  отчёт `data/brewery-channels-report.md`. Дрейф: `@jawsbrewery`, `@hopheadbrewery` —
+  0 текст. сообщений через `t.me/s/` (медиа-посты), нужен caption/VK.
 - Rewort: 50 листингов в 2 магазинах (СПб+Мск), ABV по части сортов, остатки по
   части — `data/rewort-catalog.sqlite`, отчёт `data/rewort-loop-report.md`.
 - **Rewort обогащённый: 7 сортов из TG-первоисточника** (стиль, ABV/Plato/IBU,

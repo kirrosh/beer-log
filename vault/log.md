@@ -143,3 +143,13 @@ scripts/enrich.ts (обобщённый конвейер на @beer-log/*), eval
 канонизация имени). Каталог: 20→27 пивоварен (9 обогащено на месте, 7 новых).
 Отброшены как неподтверждённые/закрытые: Mad Brewlab, Brick Stone, Wylde Brew, ДНК.
 Файлы: scripts/seed-top-breweries.ts, data/top-breweries-report.md, data/catalog.sqlite.
+
+## [2026-05-29] ingest | 28 сортов из офиц. TG-каналов пивоварен (task-13)
+Наполнили authoritative-слой: 28 сортов из 6 офиц. Telegram-каналов (AF Brew,
+Brewlok, Selfmade, Salden's, Zagovor, Big Village) → каталог 5→33 сорта, статус
+validated, провенанс на канал, стили по `categorizeStyle`. Ключевой вывод: regex
+`parseBreweryReleases` (формат Rewort) НЕ генерализуется — у каждой пивоварни свой
+формат поста (проверено на 12 каналах). Рабочая схема — агентное извлечение из
+превью `t.me/s/` (скилл craft-enrich). Дрейф: @jawsbrewery, @hopheadbrewery дают 0
+текст. сообщений (медиа-посты) — нужен caption/VK. Файлы: scripts/ingest-brewery-channels.ts,
+data/brewery-channels-report.md.
