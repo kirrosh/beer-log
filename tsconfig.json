@@ -16,5 +16,6 @@
       "@beer-log/catalog-core": ["./packages/catalog-core/src/index.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts"]
+  "include": ["packages/*/src/**/*.ts"],
+  "exclude": ["packages/web/**", "node_modules"]
 }

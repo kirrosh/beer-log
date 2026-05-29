@@ -12,7 +12,7 @@
 - `backlog/` — задачи в формате [Backlog.md](https://github.com/MrLesk/Backlog.md).
 - `packages/catalog-core` — доменные модели каталога + таксономия стилей.
 - `packages/parsers` — фреймворк парсеров + прототип Telegram-парсера.
-- `packages/web` — заглушка сайта (bun + TS).
+- `packages/web` — витрина-справочник (SvelteKit + Svelte 5, статичная сборка).
 - `AGENTS.md` — схема: как агенты работают с вики, кодом и парсерами.
 
 ## Запуск
@@ -22,7 +22,9 @@ bun install
 bun run typecheck
 bun run parse:tg @pivnoe_delo   # прогнать парсер по одному каналу
 bun run parse:tg                # по всем seed-каналам
-bun run web                     # заглушка сайта на :3000
+bun run catalog:export          # catalog.sqlite → JSON-снапшот для витрины
+bun run web                     # витрина (dev) на :3000
+bun run web:build               # экспорт + статичная сборка витрины (packages/web/build)
 ```
 
 Бэклог:

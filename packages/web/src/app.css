@@ -1,0 +1,78 @@
+/* Beer Log — витрина. Тёмный «терминал крафт-данных». UX-спека: vault/product/reference-site-ux.md */
+@import url("https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@400;500;600;700&family=Golos+Text:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap");
+
+:root {
+  --bg: #0e0f12;
+  --bg-elev: #15171c;
+  --bg-elev-2: #1b1e24;
+  --line: rgba(255, 255, 255, 0.08);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --ink: #ece8df;
+  --ink-dim: #9a9da6;
+  --ink-faint: #686c75;
+  --amber: #e9a23b;
+  --amber-dim: #b9842f;
+
+  /* категории стилей — мета-палитра */
+  --c-ipa: #e9a23b;
+  --c-pale-ale: #b6cf57;
+  --c-lager: #f0d152;
+  --c-stout-porter: #b07a6b;
+  --c-sour-wild: #e3719e;
+  --c-wheat: #e7c794;
+  --c-belgian: #df8a44;
+  --c-specialty: #57b9a6;
+  --c-non-beer: #6b7280;
+  --c-unknown: #767b85;
+
+  --font-display: "Saira Condensed", system-ui, sans-serif;
+  --font-body: "Golos Text", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  --r: 8px;
+  --maxw: 1240px;
+}
+
+* { box-sizing: border-box; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  letter-spacing: 0.1px;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+  /* атмосфера: лёгкое тёплое свечение сверху + зерно */
+  background-image:
+    radial-gradient(1100px 520px at 50% -260px, rgba(233, 162, 59, 0.08), transparent 70%),
+    radial-gradient(900px 400px at 90% -200px, rgba(87, 185, 166, 0.05), transparent 70%);
+  background-attachment: fixed;
+  min-height: 100vh;
+}
+
+a { color: inherit; text-decoration: none; }
+
+h1, h2, h3 { font-family: var(--font-display); font-weight: 600; letter-spacing: 0.2px; margin: 0; }
+
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+.wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 22px; }
+
+::selection { background: rgba(233, 162, 59, 0.28); }
+
+/* скролл */
+* { scrollbar-width: thin; scrollbar-color: var(--line-strong) transparent; }
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--line-strong); border-radius: 6px; }
+
+/* фокус-видимость для доступности */
+:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; border-radius: 3px; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -153,3 +153,17 @@ validated, провенанс на канал, стили по `categorizeStyle`
 превью `t.me/s/` (скилл craft-enrich). Дрейф: @jawsbrewery, @hopheadbrewery дают 0
 текст. сообщений (медиа-посты) — нужен caption/VK. Файлы: scripts/ingest-brewery-channels.ts,
 data/brewery-channels-report.md.
+
+## [2026-05-29] build | Витрина-справочник v1 (task-11)
+Собрана тонкая открытая витрина «Dotabuff российского крафта»: SvelteKit + Svelte 5
+(runes) + Vite, запуск Bun, статичная сборка (adapter-static). Данные — JSON-снапшот
+(scripts/export-catalog.ts из catalog.sqlite, БД в рантайме нет). Экраны: главная
+(мета-полоса: пивоварни/сорта/города/стили + цветной stacked-бар распределения по
+стилям; фильтры: поиск/категории-chip/город/ABV/verified/офиц-TG; вкладки Сорта|
+Пивоварни), /beer/<slug>, /brewery/<slug>. Эстетика — тёмный «терминал», цвет=
+категория стиля, кириллица-шрифты (Saira Condensed/Golos Text/JetBrains Mono). Без
+потребительских рейтингов (рыночные данные, ст. 21). Проверено в браузере: главная,
+страница пивоварни (Salden's), страница сорта (Violent Twins), клиентская навигация.
+Грабли по пути: paths.relative+trailingSlash ломали динамические импорты на вложенных
+маршрутах → перешёл на абсолютные пути и чистую статику без SPA-fallback. Команды:
+bun run web / web:build. UX-спека: [[reference-site-ux]]. Связано: [[reference-site]].

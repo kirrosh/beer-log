@@ -6,7 +6,9 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "parse:tg": "bun run packages/parsers/src/run.ts",
-    "web": "bun run --hot packages/web/src/index.ts"
+    "catalog:export": "bun run scripts/export-catalog.ts",
+    "web": "bun --filter @beer-log/web dev",
+    "web:build": "bun run catalog:export && bun --filter @beer-log/web build"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

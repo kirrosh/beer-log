@@ -1,5 +1,9 @@
 node_modules/
 dist/
+# SvelteKit / Vite (витрина)
+.svelte-kit/
+packages/web/build/
+.vite/
 *.log
 .DS_Store
 .env

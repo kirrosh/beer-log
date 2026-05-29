@@ -43,7 +43,12 @@ discovery-витрина для байеров → аналитика спрос
 - `@beer-log/catalog-core` — доменные модели + таксономия стилей. Без внешних
   зависимостей.
 - `@beer-log/parsers` — фреймворк парсеров + Telegram-прототип.
-- `@beer-log/web` — сайт (пока заглушка).
+- `@beer-log/web` — витрина-справочник: **SvelteKit + Svelte 5 (runes) + Vite**,
+  статичная сборка (`adapter-static`). Данные — JSON-снапшот, генерится
+  `scripts/export-catalog.ts` из `catalog.sqlite` (никакой БД в рантайме). UX-спека:
+  `vault/product/reference-site-ux.md`. Команды: `bun run web` / `bun run web:build`.
+  Перегенерируй снапшот после ingest/seed. Веб-пакет исключён из корневого
+  `tsc` (у него свой `svelte-check`).
 - Импорты внутренних пакетов: `@beer-log/catalog-core` (см. paths в tsconfig).
 - Перед коммитом: `bun run typecheck`.
 
