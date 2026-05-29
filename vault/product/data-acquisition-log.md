@@ -27,8 +27,9 @@
 | craftopt.ru | demand (опт) | ✗ «магазин временно не работает» | InSales, лежит — пример хрупкости |
 | greatbeer.ru, beeribo.ru | demand (магазины) | ✗ client-rendered | нужен браузерный рендер |
 | beerkontora.ru | demand (магазин, Мск) | ⏳ не проверен | ~2600 сортов |
-| rewort.ru | official (сайт) | ✓ лендинг (без каталога) | ведёт в VK/Untappd |
-| vk.com/rewort | official (канал сортов) | ⏳ TODO (task-13) | **первичный источник сортов** |
+| rewort.ru | official (сайт) | ✓ лендинг (без каталога) | ведёт в TG/VK/Untappd |
+| **t.me/RewortBrewery** | official (канал) | ✓ собрано+обогащено | **лучший источник**: имя, стиль, ABV/Plato/IBU, описание в каждом релизе |
+| vk.com/rewort | official (канал сортов) | ⏳ TODO (task-13) | дублирует TG; универсальный VK-парсер |
 | Untappd | ratings | ✗ заблокирован в РФ | данные проприетарны |
 | Open Brewery DB | global registry | ✗ 0 записей по РФ (проверено по API) | для РФ бесполезен |
 
@@ -37,6 +38,11 @@
 - Пивоварни: сид ~20 из russiancraftbeer (`data/catalog.sqlite`) + Rewort.
 - Rewort: 50 листингов в 2 магазинах (СПб+Мск), ABV по части сортов, остатки по
   части — `data/rewort-catalog.sqlite`, отчёт `data/rewort-loop-report.md`.
+- **Rewort обогащённый: 7 сортов из TG-первоисточника** (стиль, ABV/Plato/IBU,
+  описание, теги, ссылки) + цены из магазинов, статус validated —
+  `data/rewort-enriched.sqlite` / `.json`, отчёт `data/rewort-enriched-report.md`.
+  Это и есть агентное обогащение: «сырьё» → адекватные записи (позже автоматизирует
+  скилл). Дедуп: fuzzy (`isSameBeer` в catalog-core) + ручные алиасы.
 - Подтверждённая петля: supply (сорта) ↔ demand (цены/наличие). Кросс-магазин:
   Regatta 269 ₽ в обоих.
 

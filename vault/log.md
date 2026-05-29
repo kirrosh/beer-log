@@ -116,3 +116,13 @@ data/catalog-report.md. Прим.: /export — частичная витрина
 craftopt лежит, greatbeer/beeribo на JS — хрупкость источников. Создан
 [[data-acquisition-log]] (как/откуда собираем, покрытие, дыры). Файлы:
 data/rewort-catalog.sqlite, data/rewort-loop-report.md.
+
+## [2026-05-29] build | Первоисточник Rewort (TG) + fuzzy-дедуп + обогащение
+Добрались до первоисточника: офиц. TG-канал @RewortBrewery даёт в каждом релизе
+имя/стиль/ABV/Plato/IBU/описание — богаче магазинов и VK. Написан парсер релизов
+(parseBreweryReleases) + fuzzy-матч (isSameBeer/normalizeName в catalog-core, через
+транслит slug + Левенштейн). Обогащение: 7 сортов Rewort = характеристики из TG +
+цены из магазинов (fuzzy + алиасы), статус validated, теги/описание/ссылки.
+«Крылья отваги»(TG/cb78)↔«Kryly Advagi»(winestyle) fuzzy не поймал (0.83<0.85) —
+сматчено ручным алиасом (рабочая схема task-14). Файлы: data/rewort-enriched.*,
+отчёт. Это агентное обогащение «сырьё→адекватные записи» (позже — скилл).

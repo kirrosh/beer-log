@@ -4,3 +4,5 @@ export { telegramWebParser, parseChannelHtml } from "./telegram/telegram-web.ts"
 export { extractFromMessage } from "./telegram/extract.ts";
 export { parseRcbExport } from "./web/russiancraftbeer.ts";
 export type { RcbParseResult, RcbBrewery, RcbVenue, RcbBeer } from "./web/russiancraftbeer.ts";
+export { parseBreweryReleases } from "./telegram/rewort-release.ts";
+export type { BreweryRelease } from "./telegram/rewort-release.ts";
