@@ -45,12 +45,14 @@
   посты/чек-ины 2025-26) + офиц. ссылки; хэндлы проверены (`t.me/s/`), не выдуманы.
   Колонка `breweries.links`. Батч: `data/discovery/batch-2026-05-29.json`, сидер
   `scripts/seed-breweries.ts` (переиспользуемый). Топ-обогащение: `seed-top-breweries.ts`.
-- **Сорта из офиц. каналов (task-13): 28 сортов из 6 TG-каналов** (AF Brew, Brewlok,
-  Selfmade, Salden's, Zagovor, Big Village), статус validated, провенанс на канал,
-  стили по таксономии. Извлечено **агентно** (формат релиза у каждой пивоварни свой —
-  regex `parseBreweryReleases` не генерализуется). Скрипт `scripts/ingest-brewery-channels.ts`,
-  отчёт `data/brewery-channels-report.md`. Дрейф: `@jawsbrewery`, `@hopheadbrewery` —
-  0 текст. сообщений через `t.me/s/` (медиа-посты), нужен caption/VK.
+- **Сорта из офиц. каналов (task-13): ~280 сортов** (глубокий проход 2026-05-29 по
+  25 каналам, 2 страницы превью каждый). Статус validated, провенанс на канал, стили
+  по таксономии. Извлечено **агентно** (формат релиза у каждой пивоварни свой — regex
+  `parseBreweryReleases` не генерализуется). Источник-данные: `data/ingest/sorts-2026-05-29/g*.json`,
+  скрипт `scripts/ingest-sorts.ts`. **Хинты для инкрементальных проходов:
+  `data/ingest-hints.json`** (по каждой пивоварне: канал, метод, дата, newest/oldest
+  post id, сколько сортов, статус). Дрейф (0 текст. сообщений через `t.me/s/`,
+  медиа-посты): `@jawsbrewery`, `@hopheadbrewery`, `@petzold_brewpub` — нужен caption/VK.
 - Rewort: 50 листингов в 2 магазинах (СПб+Мск), ABV по части сортов, остатки по
   части — `data/rewort-catalog.sqlite`, отчёт `data/rewort-loop-report.md`.
 - **Rewort обогащённый: 7 сортов из TG-первоисточника** (стиль, ABV/Plato/IBU,
