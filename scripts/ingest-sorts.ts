@@ -12,7 +12,8 @@ import { categorizeStyle } from "@beer-log/catalog-core";
 const DIR = process.argv[2] ?? "data/ingest/sorts-2026-05-29";
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const CHANNELS = "/tmp/bl-deep/channels.json"; // метаданные сбора (опц., из этого прохода)
-const seenAt = "2026-05-29";
+// дата прохода: из имени папки (sorts-YYYY-MM-DD) либо сегодня
+const seenAt = DIR.match(/(\d{4}-\d{2}-\d{2})/)?.[1] ?? new Date().toISOString().slice(0, 10);
 
 type Sort = { name: string; styleRaw: string; category: string; abv?: number | null; ibu?: number | null; description?: string };
 
