@@ -1,7 +1,7 @@
 ---
 id: task-3
 title: Хранилище каталога + дедупликация пивоварен и сортов
-status: To Do
+status: Done
 assignee: []
 labels: [catalog, phase-0]
 dependencies: [task-2]

@@ -1,0 +1,11 @@
+{
+  "name": "@beer-log/store",
+  "version": "0.0.0",
+  "type": "module",
+  "module": "src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": {
+    "@beer-log/catalog-core": "workspace:*",
+    "@beer-log/parsers": "workspace:*"
+  }
+}
