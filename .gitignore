@@ -8,3 +8,6 @@ bun.lockb
 # parser run artifacts
 data/raw-snapshots/
 .obsidian/workspace*
+# sqlite WAL/shm (временные, сворачиваются чекпоинтом)
+*.sqlite-wal
+*.sqlite-shm

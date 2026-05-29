@@ -132,3 +132,14 @@ data/rewort-catalog.sqlite, data/rewort-loop-report.md.
 парс релиза→стиль→теги→ссылки→цены→дедуп→статус), references/source-formats.md,
 scripts/enrich.ts (обобщённый конвейер на @beer-log/*), evals/evals.json (3 кейса).
 Упакован в skills/craft-enrich.skill. Эталон применения — scripts/enrich-rewort.ts.
+
+## [2026-05-29] discovery | Топ-16 крафтовых пивоварен РФ + офиц. ссылки (task-12)
+Наполнили Discovery-слой: 16 топовых рос. крафт-пивоварен с верифицированными
+офиц. ссылками (сайт + Telegram + VK/Untappd). Данные проверены ресёрчем по вебу
+(превью t.me/s/<handle> + офсайты) — хэндлы не выдумывались: где офиц. TG не
+подтверждён (Victory Art Brew, Plan B, 1516, Lighthouse), поле пусто. 12 из 16 с
+подтверждённым офиц. Telegram → база для ингеста сортов (task-13). В store добавлена
+колонка breweries.links (SourceRef[] JSON) + слияние в upsertBrewery (+slug-override,
+канонизация имени). Каталог: 20→27 пивоварен (9 обогащено на месте, 7 новых).
+Отброшены как неподтверждённые/закрытые: Mad Brewlab, Brick Stone, Wylde Brew, ДНК.
+Файлы: scripts/seed-top-breweries.ts, data/top-breweries-report.md, data/catalog.sqlite.

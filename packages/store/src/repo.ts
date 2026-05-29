@@ -4,43 +4,77 @@ import type { DB } from "./db.ts";
 const now = (): string => new Date().toISOString();
 const rid = (p: string): string => `${p}_${crypto.randomUUID().slice(0, 8)}`;
 
+/** Офиц. ссылка пивоварни (подмножество SourceRef): сайт/Telegram/VK/Untappd. */
+export interface BreweryLink {
+  kind: "telegram" | "website" | "vk" | "untappd" | string;
+  url: string;
+  title?: string;
+}
+
 export interface BreweryInput {
   name: string;
+  /** явный slug для привязки к существующей записи (иначе slugify(name)) */
+  slug?: string;
   city?: string;
   country?: string;
   segment?: "craft" | "mainstream" | "unknown";
   aliases?: string[];
+  links?: BreweryLink[];
+  /** при апдейте сделать input.name каноническим именем (старое уедет в алиасы) */
+  canonicalName?: boolean;
 }
 
-/** Upsert пивоварни с дедупом по slug; алиасы и пропуски сливаются. */
+/** Слить два набора ссылок по url (без дублей), сохраняя порядок. */
+function mergeLinks(prev: BreweryLink[], next: BreweryLink[]): BreweryLink[] {
+  const byUrl = new Map<string, BreweryLink>();
+  for (const l of [...prev, ...next]) {
+    if (!l?.url) continue;
+    byUrl.set(l.url, { ...byUrl.get(l.url), ...l });
+  }
+  return [...byUrl.values()];
+}
+
+/** Upsert пивоварни с дедупом по slug; алиасы, ссылки и пропуски сливаются. */
 export function upsertBrewery(db: DB, input: BreweryInput): string {
-  const slug = slugify(input.name);
+  const slug = input.slug ?? slugify(input.name);
   const existing = db
-    .query("SELECT id, name, aliases FROM breweries WHERE slug = ?")
-    .get(slug) as { id: string; name: string; aliases: string } | null;
+    .query("SELECT id, name, aliases, links FROM breweries WHERE slug = ?")
+    .get(slug) as { id: string; name: string; aliases: string; links: string | null } | null;
   const ts = now();
 
   if (existing) {
     const aliases = new Set<string>(JSON.parse(existing.aliases || "[]"));
     for (const a of input.aliases ?? []) aliases.add(a);
-    if (input.name && input.name !== existing.name) aliases.add(input.name);
+    // канонизация имени: новое имя — в name, старое — в алиасы
+    let name = existing.name;
+    if (input.name && input.name !== existing.name) {
+      if (input.canonicalName) { name = input.name; aliases.add(existing.name); }
+      else aliases.add(input.name);
+    }
+    aliases.delete(name);
+    const links = mergeLinks(JSON.parse(existing.links || "[]"), input.links ?? []);
     db.query(
       `UPDATE breweries SET
+         name = ?,
          city = COALESCE(city, ?),
          segment = CASE WHEN segment = 'unknown' THEN ? ELSE segment END,
-         aliases = ?, updated_at = ?
+         aliases = ?, links = ?, updated_at = ?
        WHERE id = ?`,
-    ).run(input.city ?? null, input.segment ?? "unknown", JSON.stringify([...aliases]), ts, existing.id);
+    ).run(
+      name, input.city ?? null, input.segment ?? "unknown",
+      JSON.stringify([...aliases]), JSON.stringify(links), ts, existing.id,
+    );
     return existing.id;
   }
 
   const id = rid("br");
   db.query(
-    `INSERT INTO breweries (id,name,slug,city,country,segment,aliases,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO breweries (id,name,slug,city,country,segment,aliases,links,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     id, input.name, slug, input.city ?? null, input.country ?? "RU",
-    input.segment ?? "unknown", JSON.stringify(input.aliases ?? []), ts, ts,
+    input.segment ?? "unknown", JSON.stringify(input.aliases ?? []),
+    JSON.stringify(input.links ?? []), ts, ts,
   );
   return id;
 }

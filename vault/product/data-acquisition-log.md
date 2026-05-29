@@ -35,7 +35,14 @@
 
 ## Покрытие сейчас
 
-- Пивоварни: сид ~20 из russiancraftbeer (`data/catalog.sqlite`) + Rewort.
+- Пивоварни: **27 в `data/catalog.sqlite`** = сид ~20 из russiancraftbeer + **16 топовых
+  с верифицированными офиц. ссылками** (9 обогатили существующие записи, 7 новых).
+  Из 16 — **12 с подтверждённым офиц. Telegram** (база для task-13). Хэндлы проверены
+  по вебу (превью `t.me/s/`), не выдуманы: где TG не подтверждён — поле пусто. Колонка
+  `breweries.links` (SourceRef[]). Скрипт `scripts/seed-top-breweries.ts`, отчёт
+  `data/top-breweries-report.md`. Топ-список: AF Brew, Бакунин, Stamm, Zagovor,
+  Selfmade, Jaws, Salden's, Victory Art Brew, Konix, 4 Brewers, Plan B, Big Village,
+  Brewlok, HopHead, 1516, Lighthouse. (+ Rewort обогащён ранее.)
 - Rewort: 50 листингов в 2 магазинах (СПб+Мск), ABV по части сортов, остатки по
   части — `data/rewort-catalog.sqlite`, отчёт `data/rewort-loop-report.md`.
 - **Rewort обогащённый: 7 сортов из TG-первоисточника** (стиль, ABV/Plato/IBU,
@@ -48,7 +55,7 @@
 
 ## Чего ещё нет (приоритетные дыры)
 
-- **Полный список пивоварен РФ** — сейчас десятки, нужно сотни (task-12).
+- **Полный список пивоварен РФ** — сейчас 27 (16 с офиц. ссылками), цель task-12 — ≥200.
 - **Актуальные сорта из офиц. каналов** — VK-парсер (task-13); сейчас сорта берём
   из магазинов, а не от пивоварни.
 - **Стили сортов Rewort** — есть только цвет/ABV из winestyle; точный стиль — из

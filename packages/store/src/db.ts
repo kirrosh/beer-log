@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS breweries (
   country TEXT DEFAULT 'RU',
   segment TEXT DEFAULT 'unknown',
   aliases TEXT DEFAULT '[]',
+  -- офиц. ссылки пивоварни (SourceRef[] в JSON): сайт, Telegram, VK, Untappd
+  links TEXT DEFAULT '[]',
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -85,4 +87,15 @@ CREATE TABLE IF NOT EXISTS price_snapshots (
 );
 CREATE INDEX IF NOT EXISTS snap_key ON price_snapshots(item_key, seen_at);
   `);
+
+  // эволюция схемы для уже созданных БД: добавить недостающие колонки
+  addColumnIfMissing(db, "breweries", "links", "TEXT DEFAULT '[]'");
+}
+
+/** Идемпотентно добавить колонку, если её ещё нет (для старых БД). */
+function addColumnIfMissing(db: DB, table: string, column: string, decl: string): void {
+  const cols = db.query(`PRAGMA table_info(${table})`).all() as { name: string }[];
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${decl}`);
+  }
 }
