@@ -126,3 +126,9 @@ data/rewort-catalog.sqlite, data/rewort-loop-report.md.
 «Крылья отваги»(TG/cb78)↔«Kryly Advagi»(winestyle) fuzzy не поймал (0.83<0.85) —
 сматчено ручным алиасом (рабочая схема task-14). Файлы: data/rewort-enriched.*,
 отчёт. Это агентное обогащение «сырьё→адекватные записи» (позже — скилл).
+
+## [2026-05-29] build | Скилл craft-enrich (обогащение каталога)
+Собран скилл обогащения: SKILL.md (Telegram-first; VK — крайний случай; конвейер
+парс релиза→стиль→теги→ссылки→цены→дедуп→статус), references/source-formats.md,
+scripts/enrich.ts (обобщённый конвейер на @beer-log/*), evals/evals.json (3 кейса).
+Упакован в skills/craft-enrich.skill. Эталон применения — scripts/enrich-rewort.ts.
