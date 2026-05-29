@@ -3,7 +3,7 @@ id: task-1
 title: Найти прайсовые TG-каналы боттлшопов и пивоварен
 status: To Do
 assignee: []
-labels: [research, phase-0, parser]
+labels: [demand, phase-0, parser]
 dependencies: []
 created_date: 2026-05-29
 ---
