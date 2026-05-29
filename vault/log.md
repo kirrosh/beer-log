@@ -201,3 +201,19 @@ data/discovery/batch-2026-05-29.json, scripts/seed-breweries.ts (переисп�
 (упёрлись в первую страницу Untappd — AJAX-догрузка остатка не реализована, статус
 ok-untappd-capped). Каталог 280→355 сортов. ingest-sorts.ts доработан: мержит хинты,
 не затирая блок untappd. Дальше: расширять MAP для ~40 пивоварен без TG.
+
+## [2026-05-29] ingest | Demand-слой: beerkontora 700 листингов, петля замкнулась (task-10)
+Запустили слой спроса (магазины) — по mvp.md это ядро продукта (петля supply↔demand).
+beerkontora.ru на InSales server-рендерит каталог → парсится обычным fetch. Парсер
+parseInsalesProducts/shopTitleToBeerName (packages/parsers/src/shops/) + scripts/ingest-shop.ts.
+Идём по коллекциям ПИВОВАРЕН (/collection/<handle>) — пивоварня известна → дедуп чистый
+(isSameBeer по обеим половинам заголовка рус/eng — канон бывает и рус. из TG, и англ. из
+Untappd). 700 листингов по 8 пивоварням (карта SHOP.map, 14 наших ∩ beerkontora; 6 пустые),
+33 склеены с каноном, 682 снапшота цен (price_snapshots → детект скидок при повторе во
+времени; recordListing уже это делал), наличие захвачено (Jaws 67/70 нет в наличии = сигнал).
+Магазин — ВТОРИЧНЫЙ источник: несвязанные листинги beerId=null (ассортимент/цена без
+засорения канона); авто-создание сортов отвергли (мусор: кросс-листинги BrewDog, комбуча,
+транслит). Петля замкнулась end-to-end: сорта Jaws с Untappd → их листинги из магазина
+склеились. export-catalog несёт beer.demand={listings,sellers,discounted}; 28 сортов с
+сигналом. Нюанс: цены beerkontora оптовые за упаковку (packQty). Дальше: повтор во времени,
+/collection/all для discovery, ещё магазины (craftbeer78 per-unit), промоушн листингов в канон.

@@ -8,3 +8,5 @@ export { parseBreweryReleases } from "./telegram/rewort-release.ts";
 export type { BreweryRelease } from "./telegram/rewort-release.ts";
 export { untappdWebParser, parseUntappdBeerList } from "./untappd/untappd-web.ts";
 export type { UntappdBeer } from "./untappd/untappd-web.ts";
+export { parseInsalesProducts, shopTitleToBeerName } from "./shops/insales.ts";
+export type { InsalesProduct, ShopFormat } from "./shops/insales.ts";

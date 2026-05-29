@@ -40,6 +40,19 @@ const beers = (db.query(
     .map((s) => s.excerpt)
     .filter((e): e is string => !!e)
     .sort((a, b) => b.length - a.length)[0] ?? null;
+  // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка.
+  // Headline-цену не выносим: разные продавцы дают опт (за упаковку) vs розницу (за ед.) —
+  // смешивать в одну «цену от» некорректно; детали — в price_listings.
+  const pl = db.query(
+    "SELECT seller, discounted FROM price_listings WHERE beer_id = ?",
+  ).all(r.id as string) as { seller: string | null; discounted: number }[];
+  const demand = pl.length
+    ? {
+        listings: pl.length,
+        sellers: [...new Set(pl.map((x) => x.seller).filter(Boolean))],
+        discounted: pl.some((x) => x.discounted === 1),
+      }
+    : null;
   return {
     slug: r.slug as string,
     name: r.name as string,
@@ -54,6 +67,7 @@ const beers = (db.query(
     description,
     sources: [...new Set(srcs.map((s) => s.source_url))],
     aliases: JSON.parse((r.aliases as string) || "[]") as string[],
+    demand,
   };
 });
 
@@ -68,6 +82,7 @@ const snapshot = {
     breweries: breweriesOut.length,
     beers: beers.length,
     cities: new Set(breweriesOut.map((b) => b.city).filter(Boolean)).size,
+    beersWithDemand: beers.filter((b) => b.demand).length,
   },
   breweries: breweriesOut,
   beers,
