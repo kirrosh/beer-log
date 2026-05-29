@@ -1,11 +1,18 @@
 ---
 id: task-13
-title: Парсеры офиц. каналов пивоварен (VK + TG), наведённые на discovery
+title: 'Парсеры офиц. каналов пивоварен (VK + TG), наведённые на discovery'
 status: To Do
 assignee: []
-labels: [parser, phase-0, next]
-dependencies: [task-12]
-created_date: 2026-05-29
+created_date: '2026-05-29'
+updated_date: '2026-05-29 16:43'
+labels:
+  - parser
+  - phase-0
+  - next
+milestone: 'M1: Ширина каталога + витрина'
+dependencies:
+  - task-12
+priority: high
 ---
 
 ## Description

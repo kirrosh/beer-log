@@ -3,9 +3,15 @@ id: task-12
 title: Discovery — полный реестр пивоварен РФ + офиц. ссылки
 status: To Do
 assignee: []
-labels: [discovery, phase-0, next]
+created_date: '2026-05-29'
+updated_date: '2026-05-29 16:43'
+labels:
+  - discovery
+  - phase-0
+  - next
+milestone: 'M1: Ширина каталога + витрина'
 dependencies: []
-created_date: 2026-05-29
+priority: high
 ---
 
 ## Description

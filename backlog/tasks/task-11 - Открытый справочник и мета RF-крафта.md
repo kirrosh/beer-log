@@ -3,9 +3,18 @@ id: task-11
 title: Открытый справочник + мета RF-крафта (Dotabuff-формат)
 status: To Do
 assignee: []
-labels: [web, phase-0, catalog, growth]
-dependencies: [task-3, task-4]
-created_date: 2026-05-29
+created_date: '2026-05-29'
+updated_date: '2026-05-29 16:43'
+labels:
+  - web
+  - phase-0
+  - catalog
+  - growth
+milestone: 'M1: Ширина каталога + витрина'
+dependencies:
+  - task-3
+  - task-4
+priority: high
 ---
 
 ## Description
