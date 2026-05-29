@@ -1,0 +1,15 @@
+{
+  "name": "beer-log",
+  "private": true,
+  "type": "module",
+  "workspaces": ["packages/*"],
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "parse:tg": "bun run packages/parsers/src/run.ts",
+    "web": "bun run --hot packages/web/src/index.ts"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "@types/bun": "latest"
+  }
+}

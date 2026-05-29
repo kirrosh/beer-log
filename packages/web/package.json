@@ -1,0 +1,11 @@
+{
+  "name": "@beer-log/web",
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@beer-log/catalog-core": "workspace:*"
+  },
+  "scripts": {
+    "dev": "bun run --hot src/index.ts"
+  }
+}

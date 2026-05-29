@@ -1,0 +1,4 @@
+# Bun workspace config
+[install]
+# use workspace: protocol for internal packages
+linker = "hoisted"

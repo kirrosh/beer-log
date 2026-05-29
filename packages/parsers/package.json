@@ -1,0 +1,11 @@
+{
+  "name": "@beer-log/parsers",
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@beer-log/catalog-core": "workspace:*"
+  },
+  "scripts": {
+    "parse": "bun run src/run.ts"
+  }
+}
