@@ -246,3 +246,16 @@ scripts/promote-sorts.ts (validate/merge/drop/review, листинги/пров�
 (12 discovered/29 sourced/12 ingested/19 validated), очередь — ingest-sorts 29, demand 18,
 brewery-research 15, promote-sorts 6, human-review 3. Дальше: пройти очередь скиллами;
 позже скилл pipeline-run (оркестратор), реестр магазинов shops.json, города/заявки/СНГ.
+
+## [2026-05-30] build | Скилл-оркестратор pipeline-run + демо-виток промоушна
+Собрал оркестратор конвейера (.claude/skills/pipeline-run): читает приоритизированный план
+(scripts/pipeline-status.ts --plan → JSON {plan,gates}), берёт топ-группу, диспетчит батчами
+параллельными субагентами нужный скилл (promote-sorts/brewery-research/shop-discovery) или
+ingest-скрипт, применяет результат, рефрешит дашборд. Бюджеты: ≤5 субагентов, ≤10 сущностей/
+запуск; гейты (human-review/blocked) и скоуп (новый город/страна) — не трогает, отдаёт человеку.
+Добавил режим --plan в pipeline-status (приоритет promote→ingest→research→demand).
+Демо-виток: топ-группа promote-sorts (6 пивоварен) → 2 субагента ×3 → validate 434/merge 2/
+drop 6 (зельтцеры/газировка)/review 10. Итог: validated 458→892, auto 523→81 (остаток —
+только спорные в human-review, 8 пивоварен). Группа promote-sorts очищена, следующий
+приоритет плана — ingest-sorts (29). Дальше: пройти ingest/research оркестратором; разобрать
+human-review (гейт человека); shops.json + demand по городам.

@@ -10,6 +10,7 @@ import { Database } from "bun:sqlite";
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const db = new Database(DB_PATH, { readonly: true });
 const jsonOnly = process.argv.includes("--json");
+const planOnly = process.argv.includes("--plan");
 
 const hints = (await Bun.file("data/ingest-hints.json").exists())
   ? (JSON.parse(await Bun.file("data/ingest-hints.json").text()).breweries ?? {}) : {};
@@ -77,6 +78,35 @@ const state = {
 };
 await Bun.write("data/pipeline/state.json", JSON.stringify(state, null, 2));
 if (jsonOnly) { console.log("→ data/pipeline/state.json"); process.exit(0); }
+
+// ---- машинный план для оркестратора (pipeline-run) ----
+if (planOnly) {
+  // приоритет: promote (дёшево, чистит канон) → ingest (добор сортов) → research (разблокировка)
+  // → demand (магазины города). human-review/blocked — гейты, НЕ в план.
+  const PRIORITY = ["promote-sorts", "ingest-sorts", "brewery-research", "demand"];
+  const HOW: Record<string, string> = {
+    "promote-sorts": "скилл promote-sorts по каждой пивоварне (можно параллельно субагентами) → promote-sorts.ts",
+    "ingest-sorts": "ingest по источнику: Untappd→MAP в ingest-untappd.ts; TG→fetch-channels+ingest-sorts",
+    "brewery-research": "скилл brewery-research по каждой (параллельно субагентами) → links/ingest-hints",
+    "demand": "скилл shop-discovery по городу пивоварни → реестр магазинов → скан",
+  };
+  const group: Record<string, string[]> = {};
+  for (const b of brewState) {
+    if (b.blocked || b.nextAction === "ok") continue;
+    const key = b.nextAction.split(" (")[0]!;
+    if (key === "human-review") continue; // гейт человека
+    (group[key] ??= []).push(b.slug);
+  }
+  const plan = PRIORITY.filter((a) => group[a]?.length).map((action, i) => ({
+    action, priority: i + 1, count: group[action]!.length, slugs: group[action]!, how: HOW[action],
+  }));
+  const gates = {
+    humanReview: brewState.filter((b) => b.needsReview.length).map((b) => b.slug),
+    blocked: brewState.filter((b) => b.blocked).map((b) => b.slug),
+  };
+  console.log(JSON.stringify({ generatedAt: state.generatedAt, plan, gates }, null, 2));
+  process.exit(0);
+}
 
 // ---- дашборд ----
 const byStage: Record<string, number> = {};
