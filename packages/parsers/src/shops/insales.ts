@@ -115,20 +115,28 @@ export function parseInsalesProducts(html: string): InsalesProduct[] {
  * Очищает имя сорта из заголовка магазина для сопоставления с каталогом:
  * берёт английскую часть (после "/"), срезает префикс-пивоварню, объём и формат.
  */
+// родовые токены типа пивоварни — срезаем, если торчат в начале после снятия алиаса
+// (напр. алиас "Stamm" снят, но в "Stamm Beer X" остаётся "Beer X"; "Konix Brewery" → "Brewery X")
+const BREWERY_TOKEN = /^\s*(beer|brewery|brewing|brewers?|pivovarnya|пивоварня|пивоварни|бровар|craft|company|co|и\s+id|&\s*id)\s+/i;
+
 export function shopTitleToBeerName(title: string, breweryAliases: string[] = []): string {
   let s = title;
   // "Пиво Х / Eng Name 0.33 - банка" → предпочитаем часть после "/"
   const slash = s.lastIndexOf("/");
   if (slash >= 0) s = s.slice(slash + 1);
   s = s
-    .replace(/^\s*(пиво|сидр|мед|медовуха|напиток)\s+/i, "")
-    .replace(/\d+[.,]\d+\s*(?:л|l)?\b.*$/i, " ") // объём и всё после
-    .replace(/[-–—].*$/, " ") // "- банка"
+    .replace(/^\s*(пиво|сидр|мед|медовуха|напиток|beer|cider)\s+/i, "")
+    .replace(/\s+\d+([.,]\d+)?\s*(?:мл|ml|л|l)(?![\p{L}]).*$/iu, " ") // "… 20л" / "0.5 л" + всё после (Unicode-граница: \b не ловит кириллицу)
+    .replace(/\s+\d+[.,]\d+\b.*$/, " ")                      // "… 0.33 - банка" (десятичный объём без ед.)
+    .replace(/\s*[-–—]\s*(банк|стекл|бутыл|кег|разлив|can|bottle|keg|draft).*$/i, " ") // "- банка"
     .trim();
+  // снять алиас пивоварни (с любого места начала) + повторно родовые токены
   for (const a of breweryAliases) {
     if (!a) continue;
-    const re = new RegExp("^\\s*" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s+", "i");
+    const re = new RegExp("^\\s*" + a.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "\\s*", "i");
     s = s.replace(re, "");
   }
+  let prev = "";
+  while (prev !== s) { prev = s; s = s.replace(BREWERY_TOKEN, ""); }
   return clean(s);
 }
