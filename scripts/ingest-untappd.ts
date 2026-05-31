@@ -113,9 +113,10 @@ for (const [slug, url] of targets) {
       });
       ingested++;
     }
-    // Честное покрытие по реальному тоталу из шапки (а не бинарное «упёрлось в 25»):
-    // partial — добрали меньше заявленного (логин-гейт без cookie / догрузка не дошла).
-    const partial = total != null && ingested < total;
+    // Честное покрытие по реальному тоталу из шапки (а не бинарное «упёрлось в 25»). PARTIAL —
+    // значимый недобор (>3): логин-гейт без cookie / догрузка не дошла. Недобор в 1–3 сорта при
+    // полной пагинации — это блоки без стиля/имени (парсер их пропускает), не повод флагать.
+    const partial = total != null && total - ingested > 3;
     const cov = total != null ? ` (${ingested}/${total})` : "";
     console.log(`@untappd ${slug}: сортов ${ingested}${cov}${partial ? " — недобор, см. cookie/пагинацию" : ""} | ${url}`);
     if (partial) status = "ok-untappd-partial";
