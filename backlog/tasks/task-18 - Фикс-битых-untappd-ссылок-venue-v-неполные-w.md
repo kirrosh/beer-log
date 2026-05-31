@@ -4,6 +4,7 @@ title: 'Фикс битых untappd-ссылок (venue /v/, неполные /w
 status: To Do
 assignee: []
 created_date: '2026-05-31 14:41'
+updated_date: '2026-05-31 15:28'
 labels:
   - ingest
   - data-quality
@@ -32,3 +33,9 @@ priority: low
 - [ ] #1 victory-art-brew и wild-lab имеют валидный untappd-URL в breweries.links и заингещены
 - [ ] #2 brewery-research/ресёрч проверяет untappd-ссылку на venue/неполноту перед записью
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-05-31 (pipeline-run brewery-research итерация): битые untappd-ссылки ИСПРАВЛЕНЫ в breweries.links — victory-art-brew venue /v/victory-art-brew/2040839 → https://untappd.com/VictoryArtBrew/beer (верифицирован, реальные сорта); wild-lab неполный /w/wild-lab → https://untappd.com/w/wild-lab/310414/beer (id 310414, 26 сортов; нюанс: бренд gypsy-переехал Москва→Буэнос-Айрес, заголовок 'Wild Lab - Argentina', сущность та же). Оба теперь классифицируются как ingest-sorts. ОСТАЁТСЯ: (1) доингестить их сорта; (2) превентивная эвристика — research проверяет untappd-ссылку classifyUntappdBeerListUrl перед записью (пока субагентам это в промпте, программно не зашито).
+<!-- SECTION:NOTES:END -->
