@@ -259,3 +259,15 @@ drop 6 (зельтцеры/газировка)/review 10. Итог: validated 45
 только спорные в human-review, 8 пивоварен). Группа promote-sorts очищена, следующий
 приоритет плана — ingest-sorts (29). Дальше: пройти ingest/research оркестратором; разобрать
 human-review (гейт человека); shops.json + demand по городам.
+
+## [2026-05-31] ingest | pipeline-run sweep — ingest-sorts batch 1 (Untappd ×7 + blocked ×3)
+Оркестратор pipeline-run (sweep): топ-группа плана — ingest-sorts (29). Обработал первый
+батч ≤10. Источник untappd.com есть у 7 → добавил в MAP scripts/ingest-untappd.ts
+(profile-URL из breweries.links → +/beer) и запустил: brew-barrel, brew-by-crew,
+brew-garage-78, brewmen, burning-brewery, credo-brewery, craft-band — +167 сортов
+(validated). 5 из 7 упёрлись в page-cap 25 (возможна AJAX-догрузка). Без читаемого
+источника (нет untappd.com и нет TG): 1516-brewery (untappd-линк ведёт на your.beer-зеркало),
+brauerei-ponarth, crazy-brew (website+vk) — помечены blocked в overrides, не выдумывал.
+Дашборд: ingested 11 / validated 27 / blocked 3; очередь ingest-sorts 29→19. Субагентов не
+порождал (Agent tool недоступен) — ingest-sorts детерминирован, делал сам. Дальше: остаток
+ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивоварен (не трогаю).

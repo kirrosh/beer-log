@@ -23,6 +23,14 @@ const MAP: Record<string, string> = {
   "jaws-brewery": "https://untappd.com/JawsBrew/beer",
   "hophead-brewery": "https://untappd.com/Hophead_Brewery/beer",
   "petzold": "https://untappd.com/w/petzold-brewpub/159028/beer",
+  // task: ingest-sorts batch 1 (pipeline-run sweep 2026-05-31)
+  "brew-barrel": "https://untappd.com/Brew_Barrel/beer",
+  "brew-by-crew": "https://untappd.com/BrewByCrew/beer",
+  "brew-garage-78": "https://untappd.com/BrewGarage78/beer",
+  "brewmen": "https://untappd.com/BrewmenBrewery/beer",
+  "burning-brewery": "https://untappd.com/BurningBrewery/beer",
+  "credo-brewery": "https://untappd.com/CredoBrewery/beer",
+  "craft-band": "https://untappd.com/Craftband/beer",
 };
 
 const only = new Set(process.argv.slice(2));
