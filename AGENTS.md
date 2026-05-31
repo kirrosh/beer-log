@@ -24,6 +24,14 @@ discovery-витрина для байеров → аналитика спрос
 
 ## Рабочие процессы
 
+### Операционный конвейер (наполнение каталога)
+Полная модель — `vault/product/operating-pipeline.md`. Сущности (пивоварня/магазин/город)
+идут по стадиям; состояние процесса ВЫВОДИТСЯ `scripts/pipeline-status.ts` (дашборд +
+очередь действий) из БД+hints+links, руками — только `data/pipeline/overrides.json`
+(валидация/блокеры). Агентные шаги — скиллы `.claude/skills/`: `brewery-research`
+(источники), `promote-sorts` (auto→validated), `shop-discovery` (магазины). Начинай виток
+с `bun run scripts/pipeline-status.ts` → бери «следующее действие» из очереди.
+
 ### Инкрементальный проход по каналам пивоварен
 Обновление каталога новыми сортами — пошагово в `data/ingest/RUNBOOK.md`
 (fetch новых постов по `newestId` из `data/ingest-hints.json` → агентное извлечение →

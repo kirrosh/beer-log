@@ -232,3 +232,17 @@ Untappd). 700 листингов по 8 пивоварням (карта SHOP.ma
 (Beer/Brewery/Pivovarnya), Unicode-граница объёма (\b не ловит кириллицу 'л'), NONBEER по
 исходному заголовку. Остаточный шум ~3/641 + транслит-имена (beerkontora латиницей) —
 чистка/промоушн auto→validated отдельным проходом. catalog.json несёт beer.demand.
+
+## [2026-05-30] build | Операционный конвейер: трекинг + скиллы + промоушн auto→validated
+Заложил полу-автономный конвейер (vault/product/operating-pipeline.md). Сущности
+(пивоварня/магазин/город) идут по стадиям; состояние ВЫВОДИТСЯ scripts/pipeline-status.ts
+(дашборд + очередь действий) из БД+ingest-hints+links, руками — только
+data/pipeline/overrides.json (валидация/блокеры/needsReview). Чеклисты не ведём вручную —
+вычисляются. Агентные шаги — 3 скилла .claude/skills/: brewery-research (источники),
+promote-sorts (auto→validated), shop-discovery (магазины). Применитель решений промоушна —
+scripts/promote-sorts.ts (validate/merge/drop/review, листинги/провенанс сохраняются).
+Прогнал промоушн на 3 пивоварнях (агент по скиллу): jaws/konix/gletcher → validated 350→458,
+9 слияний транслит-дублей, drop минералки, 10 спорных в needsReview. Дашборд: 72 пивоварни
+(12 discovered/29 sourced/12 ingested/19 validated), очередь — ingest-sorts 29, demand 18,
+brewery-research 15, promote-sorts 6, human-review 3. Дальше: пройти очередь скиллами;
+позже скилл pipeline-run (оркестратор), реестр магазинов shops.json, города/заявки/СНГ.
