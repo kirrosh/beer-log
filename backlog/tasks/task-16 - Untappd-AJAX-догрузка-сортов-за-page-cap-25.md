@@ -4,6 +4,7 @@ title: 'Untappd: AJAX-догрузка сортов за page-cap (>25)'
 status: To Do
 assignee: []
 created_date: '2026-05-31 14:40'
+updated_date: '2026-05-31 15:45'
 labels:
   - ingest
   - parser
@@ -34,4 +35,11 @@ Untappd-парсер читает только первую страницу с�
 - [ ] #2 Есть предохранитель по числу страниц и пауза/лимит между запросами
 - [ ] #3 ingest-untappd повторно прогнан по CAPPED-пивоварням, секция CAPPED очищается
 - [ ] #4 healthCheck парсера учитывает пагинацию (дрейф не маскируется потолком)
+- [ ] #5 Страницы без SSR .beer-item (полный JS-рендер, напр. victory-art-brew) тоже извлекаются (headless/AJAX endpoint), а не только пагинация за 25
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+2026-05-31: расширен скоуп. Кроме page-cap >25 есть второй случай той же причины (JS-рендер): у некоторых пивоварен untappd /beer вообще НЕ отдаёт SSR .beer-item — список целиком за JS. Пример: victory-art-brew (untappd.com/VictoryArtBrew/beer, ссылка валидна, заголовок верный, но 0 .beer-item в HTML → парсер падает с ParserDriftError, сорта не извлекаются). Сейчас victory-art-brew припаркован blocked (overrides) с отсылкой сюда — разблокировать после JS-рендера. Попутно: healthCheck untappd-парсера даёт ЛОЖНЫЙ drift ('разметка изменилась'), когда строка 'beer-item' встречается 1 раз в JS-шаблоне, но реальных блоков нет — стоит поднять порог/проверять data-bid, чтобы не путать JS-рендер с дрейфом разметки.
+<!-- SECTION:NOTES:END -->
