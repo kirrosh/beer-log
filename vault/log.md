@@ -283,3 +283,5 @@ ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивов
 - 2026-05-31 brewery-research батч ×8 (pipeline-run, итерация): очередь research опустела (8→0). Sourced: papa-s-hobby, sergacore, vasileostrovskaya (Untappd 167 сортов!), + ИСПРАВЛЕНЫ битые untappd task-18: victory-art-brew (venue→/VictoryArtBrew/beer), wild-lab (неполный→/w/wild-lab/310414/beer). Blocked ×3: sorre (фр. сидрерия, не РФ), updraft-brewery (RU не существует), dnk-brewery (закрыта с 2023).
 
 - 2026-05-31 ingest-sorts ×3 (pipeline-run, итерация): papa-s-hobby 5, wild-lab 25 (validated, +30 сортов). victory-art-brew УПАЛ — untappd-страница без SSR beer-блоков (JS-рендер), парсер 0; припаркован blocked→task-16.
+
+- 2026-05-31 promote-sorts ×3 (pipeline-run, итерация): 3 субагента сверили auto-сорта с Untappd-эталоном → промоушн. dream-team V12/M3/R2, sergacore V14 (рыбная серия → рус. имена, Sour-Smoothie), vasileostrovskaya V29/M1. Итого validated 55, merged 4, review 2 (→human-review). auto 81→22. ПЛАН ПУСТ — supply-цикл (research→ingest→promote) вычищен; остались только гейты (human-review 9, blocked 8) и demand (магазины городов, scope человека).
