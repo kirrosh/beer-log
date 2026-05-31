@@ -6,6 +6,7 @@
 //   bun run scripts/pipeline-status.ts            # дашборд + queue
 //   bun run scripts/pipeline-status.ts --json     # только записать data/pipeline/state.json
 import { Database } from "bun:sqlite";
+import { classifyUntappdBeerListUrl } from "@beer-log/parsers";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const db = new Database(DB_PATH, { readonly: true });
@@ -22,13 +23,23 @@ const breweries = db.query("SELECT id, name, slug, city, links, aliases FROM bre
 
 // СТАДИИ пивоварни: discovered → sourced → ingested → validated → demand_linked
 const SOURCE_KINDS = ["telegram", "vk", "website", "untappd"];
+// Машинно-читаемые источники для ingest-sorts: только telegram (fetch-channels) и untappd
+// (ingest-untappd, и то лишь с валидным URL) реально парсятся. website/vk — НЕ ingestable:
+// дают стадию sourced, но добор сортов невозможен → такие идут в brewery-research. См. ниже.
 const brewState = breweries.map((b) => {
-  const links = JSON.parse(b.links || "[]") as { kind: string }[];
+  const links = JSON.parse(b.links || "[]") as { kind: string; url?: string }[];
   const h = (hints as Record<string, any>)[b.slug] ?? {};
   const ov = overrides.breweries?.[b.slug] ?? {};
   const sources = new Set<string>(links.map((l) => l.kind).filter((k) => SOURCE_KINDS.includes(k)));
   if (h.channel) sources.add("telegram");
   if (h.untappd) sources.add("untappd");
+  // ingestable = реально парсимые источники. telegram — да; untappd — только если URL валиден
+  // (не venue /v/, не зеркало, не неполный /w/ — иначе ingest-untappd зациклится на фейле).
+  const untappdUrl = h.untappd?.url ?? links.find((l) => l.kind === "untappd" && l.url)?.url;
+  const untappdIngestable = !!untappdUrl && classifyUntappdBeerListUrl(untappdUrl).ok;
+  const ingestable = [...sources].filter(
+    (k) => k === "telegram" || (k === "untappd" && untappdIngestable),
+  );
   const counts = db.query(
     "SELECT COUNT(*) total, SUM(status='validated') val, SUM(status='auto') auto FROM beers WHERE brewery_id = ?",
   ).get(b.id) as { total: number; val: number; auto: number };
@@ -49,15 +60,21 @@ const brewState = breweries.map((b) => {
   let nextAction = "ok";
   if (ov.blocked) nextAction = `blocked: ${ov.blocked}`;
   else if (sources.size === 0) nextAction = "brewery-research (нет источников)";
-  else if (total === 0) nextAction = `ingest-sorts (источники: ${[...sources].join(",")})`;
+  else if (total === 0 && ingestable.length === 0)
+    nextAction = `brewery-research (нет читаемого источника: ${[...sources].join(",")})`;
+  else if (total === 0) nextAction = `ingest-sorts (источники: ${ingestable.join(",")})`;
   else if (auto > 0 && auto <= (ov.needsReview?.length ?? 0)) nextAction = `human-review (${auto} спорных)`;
   else if (auto > 0) nextAction = `promote-sorts (${auto} auto)`;
   else if (dem.listings === 0) nextAction = "demand: нет листингов (магазин города)";
 
+  // capped: untappd-ингест упёрся в первую страницу (~25 сортов) — есть ещё за AJAX-догрузкой.
+  // Не гейт и не в плане: мягкая очередь на дозагрузку (пагинация пока не реализована).
+  const capped = h.untappd?.status === "ok-untappd-capped";
+
   return {
     slug: b.slug, name: b.name, city: b.city, stage,
     sources: [...sources], sorts: { total, validated: val, auto }, demandListings: dem.listings,
-    needsReview: ov.needsReview ?? [], blocked: ov.blocked ?? null, priority: ov.priority ?? null, nextAction,
+    needsReview: ov.needsReview ?? [], blocked: ov.blocked ?? null, priority: ov.priority ?? null, capped, nextAction,
   };
 });
 
@@ -86,7 +103,7 @@ if (planOnly) {
   const PRIORITY = ["promote-sorts", "ingest-sorts", "brewery-research", "demand"];
   const HOW: Record<string, string> = {
     "promote-sorts": "скилл promote-sorts по каждой пивоварне (можно параллельно субагентами) → promote-sorts.ts",
-    "ingest-sorts": "ingest по источнику: Untappd→MAP в ingest-untappd.ts; TG→fetch-channels+ingest-sorts",
+    "ingest-sorts": "ingest по источнику: Untappd→`ingest-untappd.ts <slug...>` (URL берётся из breweries.links, MAP редактировать НЕ нужно); TG→fetch-channels+ingest-sorts",
     "brewery-research": "скилл brewery-research по каждой (параллельно субагентами) → links/ingest-hints",
     "demand": "скилл shop-discovery по городу пивоварни → реестр магазинов → скан",
   };
@@ -125,6 +142,9 @@ for (const [act, slugs] of Object.entries(byAction).sort((a, b) => b[1].length -
 
 const review = brewState.filter((b) => b.needsReview.length);
 if (review.length) console.log(`\n=== NEEDS-REVIEW (${review.length}) ===\n  ${review.map((b) => b.slug).join(", ")}`);
+
+const capped = brewState.filter((b) => b.capped);
+if (capped.length) console.log(`\n=== CAPPED — untappd >25 сортов, нужна дозагрузка (${capped.length}) ===\n  ${capped.map((b) => b.slug).join(", ")}`);
 
 console.log("\n=== МАГАЗИНЫ ===");
 for (const s of sellers) console.log(`  ${s.seller.padEnd(20)} листингов ${s.listings} (связано ${s.linked}) | посл. скан ${s.lastSeen}`);

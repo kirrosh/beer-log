@@ -33,10 +33,34 @@ const MAP: Record<string, string> = {
   "craft-band": "https://untappd.com/Craftband/beer",
 };
 
-const only = new Set(process.argv.slice(2));
-const targets = Object.entries(MAP).filter(([slug]) => only.size === 0 || only.has(slug));
-
 const db = openDb(DB_PATH);
+
+// Резолвит untappd-URL для slug: сперва ручной MAP (легаси/seed), иначе — ссылка kind:"untappd"
+// из breweries.links в БД. Так оркестратору НЕ нужно редактировать MAP на каждый батч —
+// достаточно передать slug'и, у которых brewery-research уже записал untappd-линк (см. SKILL.md).
+function urlFromLinks(slug: string): string | null {
+  const row = db.query("SELECT links FROM breweries WHERE slug = ?").get(slug) as { links: string } | null;
+  if (!row) return null;
+  const links = JSON.parse(row.links || "[]") as { kind: string; url?: string }[];
+  return links.find((l) => l.kind === "untappd" && l.url)?.url ?? null;
+}
+
+// Цели: с аргументами — каждый запрошенный slug (MAP → иначе БД-линк); без аргументов — весь MAP.
+const args = process.argv.slice(2);
+let targets: [string, string][];
+if (args.length === 0) {
+  targets = Object.entries(MAP);
+} else {
+  targets = [];
+  for (const slug of args) {
+    const url = MAP[slug] ?? urlFromLinks(slug);
+    if (!url) {
+      console.log(`! ${slug}: нет untappd-источника (ни в MAP, ни в breweries.links) — пропуск`);
+      continue;
+    }
+    targets.push([slug, url]);
+  }
+}
 const hintsFile = JSON.parse(await Bun.file(HINTS).text()) as {
   generatedAt: string;
   breweries: Record<string, Record<string, unknown>>;
@@ -81,7 +105,10 @@ for (const [slug, url] of targets) {
   hintsFile.breweries[slug] = {
     ...prev,
     untappd: { url, sortsIngested: ingested, lastRun: today, status },
-    note: "офиц. TG-превью закрыто/нет — сорта бэкфилнуты с Untappd (см. поле untappd)",
+    // ободряющую заметку ставим только при реальном добре — иначе (0 сортов/ошибка) она вводит в заблуждение
+    ...(ingested > 0
+      ? { note: "офиц. TG-превью закрыто/нет — сорта бэкфилнуты с Untappd (см. поле untappd)" }
+      : {}),
   };
 }
 

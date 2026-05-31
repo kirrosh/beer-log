@@ -73,11 +73,42 @@ export function parseUntappdBeerList(html: string): UntappdBeer[] {
   return out;
 }
 
-/** Нормализует цель в URL списка сортов: slug, /brewery, /brewery/beer или полный URL. */
-function toBeerListUrl(target: string): string {
-  if (/^https?:\/\//.test(target)) return target.replace(/\/$/, "");
+/**
+ * Классифицирует цель как URL списка сортов пивоварни Untappd (`…/beer`) — ЕДИНЫЙ источник
+ * правды о том, ingestable ли источник. Используется и парсером (`parse` бросает по `reason`),
+ * и трекером (`pipeline-status` считает untappd-источник ingestable только если `ok`).
+ *
+ * `ok:true` → нормализованный `…/beer`-URL для: голого slug (`JawsBrew`), `untappd.com/JawsBrew`,
+ * профиль-URL, формы `/w/<slug>/<brewery-id>` и уже готового `…/beer`.
+ * `ok:false` (НЕ ingestable, нужен ре-ресёрч/blocked):
+ *  - не-untappd.com хост (зеркала вроде your.beer) — парсер их не читает;
+ *  - venue-URL `/v/<slug>/<id>` — это бар/заведение, его меню = чужие сорта (молчаливо-неверные данные);
+ *  - неполная форма `/w/<slug>` без числового brewery-id — beer-list собрать нельзя (404).
+ */
+export function classifyUntappdBeerListUrl(target: string): { ok: true; url: string } | { ok: false; reason: string } {
+  if (/^https?:\/\//.test(target)) {
+    const u = new URL(target);
+    if (u.hostname.replace(/^www\./, "") !== "untappd.com")
+      return { ok: false, reason: `не-untappd.com источник (${u.hostname}) — парсер untappd-web его не читает` };
+    const path = u.pathname.replace(/\/+$/, "");
+    if (/^\/v\//.test(path))
+      return { ok: false, reason: `venue-URL (не список сортов пивоварни) — нужен профиль или /w/<slug>/<brewery-id>` };
+    // /w/<slug> без числового id — beer-list не построить (нужен /w/<slug>/<id>)
+    if (/^\/w\/[^/]+$/.test(path))
+      return { ok: false, reason: `неполный /w/ URL без brewery-id — нужен /w/<slug>/<brewery-id>` };
+    return { ok: true, url: `${BASE}${path.endsWith("/beer") ? path : `${path}/beer`}` };
+  }
+  // голый slug или "untappd.com/<slug>" — отрезаем хвост после первого сегмента
   const slug = target.replace(/^@/, "").replace(/^untappd\.com\//, "").replace(/\/.*$/, "");
-  return `${BASE}/${slug}/beer`;
+  if (!slug) return { ok: false, reason: `пустой untappd-таргет: ${target}` };
+  return { ok: true, url: `${BASE}/${slug}/beer` };
+}
+
+/** Нормализует цель в `…/beer`-URL; бросает ParserDriftError для не-ingestable источников. */
+function toBeerListUrl(target: string): string {
+  const c = classifyUntappdBeerListUrl(target);
+  if (!c.ok) throw new ParserDriftError("untappd-web", `${c.reason}: ${target}`);
+  return c.url;
 }
 
 export const untappdWebParser: Parser = {
