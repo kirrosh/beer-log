@@ -238,18 +238,21 @@ export const untappdWebParser: Parser = {
     }
 
     // Догрузка за первую страницу (опц.): нужна авторизованная сессия — anonymous more_beer пуст.
-    if (opts?.paginate && items.length > 0 && (totalAvailable === null || totalAvailable > items.length)) {
+    const firstPageCount = items.length;
+    if (opts?.paginate && firstPageCount > 0 && (totalAvailable === null || totalAvailable > firstPageCount)) {
       const cookie = loadUntappdCookie(opts.cookie);
       const morePath = parseUntappdMoreBeerPath(html);
       if (cookie && morePath) {
-        const more = await fetchMoreBeerPages(morePath, cookie, url, items.length, totalAvailable);
+        const more = await fetchMoreBeerPages(morePath, cookie, url, firstPageCount, totalAvailable);
         const seen = new Set(items.map((b) => b.bid));
         for (const b of more.beers) if (!seen.has(b.bid)) items.push(b);
-        // протухшая cookie / гейт: первая же догрузка пустая при заявленном total>25
-        if (more.beers.length === 0 && more.stopped === "empty-page") {
+        // Протухшая cookie / гейт: догрузка пуста, ХОТЯ первая страница упёрлась в потолок (~25) —
+        // значит остаток реально есть, но не отдался. Если же первая страница < 25, пустой more_beer
+        // — это просто исчерпание (всё было на одной странице), не повод падать и терять данные.
+        if (more.beers.length === 0 && more.stopped === "empty-page" && firstPageCount >= 25) {
           throw new ParserDriftError(
             "untappd-web",
-            `пагинация дала 0 при ${totalAvailable} заявленных — вероятно cookie сессии Untappd протухла/невалидна`,
+            `пагинация дала 0 при ${totalAvailable} заявленных и полной первой странице — вероятно cookie сессии Untappd протухла/невалидна`,
           );
         }
       }
