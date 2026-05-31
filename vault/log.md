@@ -281,3 +281,5 @@ ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивов
 - 2026-05-31 ingest-sorts батч ×8 (pipeline-run, итерация): Untappd-ингест найденных ресёрчем источников (URL из links, MAP не трогал), +178 сортов (validated). 1984-brewing-co 23, barinoff 24, chibis 25*, dwarf 25*, heartly 25*, los-pivnos 25*, lovecraft 25*, osiris 6 (*=page-cap, в CAPPED). Очередь ingest-sorts 8→0. validated 42→51.
 
 - 2026-05-31 brewery-research батч ×8 (pipeline-run, итерация): очередь research опустела (8→0). Sourced: papa-s-hobby, sergacore, vasileostrovskaya (Untappd 167 сортов!), + ИСПРАВЛЕНЫ битые untappd task-18: victory-art-brew (venue→/VictoryArtBrew/beer), wild-lab (неполный→/w/wild-lab/310414/beer). Blocked ×3: sorre (фр. сидрерия, не РФ), updraft-brewery (RU не существует), dnk-brewery (закрыта с 2023).
+
+- 2026-05-31 ingest-sorts ×3 (pipeline-run, итерация): papa-s-hobby 5, wild-lab 25 (validated, +30 сортов). victory-art-brew УПАЛ — untappd-страница без SSR beer-блоков (JS-рендер), парсер 0; припаркован blocked→task-16.
