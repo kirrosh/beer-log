@@ -3,26 +3,69 @@
 // (листает t.me/s/<handle>?before=… пока не дойдёт до прошлого newestId). Пишет на диск
 // сырьё для агентного извлечения + свежие метаданные канала.
 //
-//   bun run scripts/fetch-channels.ts            # инкрементально (только новые посты)
-//   FULL=1 bun run scripts/fetch-channels.ts     # полный проход (2 страницы, игнор newestId)
+// Источник каналов — хинты + СИД из breweries.links: пивоварни с telegram-ссылкой в БД,
+// которых ещё нет в хинтах (совсем новые каналы), подхватываются автоматически — MAP/хинты
+// руками заводить не нужно (симметрично ingest-untappd из links). Новый канал = sortsIngested
+// нет → полный back-scan (см. neverIngested ниже).
+//
+//   bun run scripts/fetch-channels.ts                  # инкрементально, все каналы
+//   FULL=1 bun run scripts/fetch-channels.ts           # полный проход (2 страницы, игнор newestId)
+//   bun run scripts/fetch-channels.ts <slug> [slug…]   # только указанные пивоварни
 //
 // Выход: /tmp/bl-deep/ch-<slug>.json  (slug,name,handle,messages — только новые)
 //        /tmp/bl-deep/channels.json   (метаданные: handle,channelUrl,pages,messagesSeen,newestId,oldestId,status)
 // Дальше: спавнить агентов-экстракторов по каналам с messagesSeen>0 (см. data/ingest/RUNBOOK.md),
 // сложить их JSON в data/ingest/sorts-<YYYY-MM-DD>/g*.json и прогнать scripts/ingest-sorts.ts.
+import { Database } from "bun:sqlite";
 import { parseChannelHtml } from "@beer-log/parsers";
 
 const FULL = !!process.env.FULL;
 const UA = { "User-Agent": "Mozilla/5.0 (compatible; beer-log/0.1)" };
 const HINTS = "data/ingest-hints.json";
+const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const MAX_PAGES = 8; // предохранитель от бесконечного листания
+const only = new Set(process.argv.slice(2)); // фильтр по slug (пусто = все каналы)
 
-const hints = JSON.parse(await Bun.file(HINTS).text()).breweries as Record<
-  string, {
-    brewery: string; channel: string | null; channelUrl: string | null; newestId: number | null;
-    sortsIngested?: number | null; status?: string; untappd?: unknown;
+type Hint = {
+  brewery: string; channel: string | null; channelUrl: string | null; newestId: number | null;
+  sortsIngested?: number | null; status?: string; untappd?: unknown;
+};
+const hints = JSON.parse(await Bun.file(HINTS).text()).breweries as Record<string, Hint>;
+
+// Извлекает публичный @handle из t.me-URL. Приватные инвайты (t.me/+…, /joinchat) — null:
+// у них нет публичного веб-превью t.me/s, фетчить нечего.
+function tgHandle(url: string): string | null {
+  try {
+    const u = new URL(url);
+    if (!/(^|\.)t\.me$/.test(u.hostname)) return null;
+    const segs = u.pathname.split("/").filter(Boolean);
+    const h = (segs[0] === "s" ? segs[1] : segs[0]) ?? "";
+    if (!h || h.startsWith("+") || h === "joinchat") return null;
+    return h.replace(/^@/, "");
+  } catch { return null; }
+}
+
+// СИД из БД: пивоварни с telegram-ссылкой, которых нет в хинтах (или у которых пустой channel)
+// → добавляем синтетическую запись с каналом из links. newestId не трогаем (у новых его нет).
+const db = new Database(DB_PATH, { readonly: true });
+let seeded = 0;
+for (const r of db.query("SELECT slug, name, links FROM breweries").all() as { slug: string; name: string; links: string }[]) {
+  const links = JSON.parse(r.links || "[]") as { kind: string; url?: string }[];
+  const tg = links.find((l) => l.kind === "telegram" && l.url);
+  const handle = tg?.url ? tgHandle(tg.url) : null;
+  if (!handle) continue;
+  const existing = hints[r.slug];
+  if (!existing) {
+    hints[r.slug] = { brewery: r.name, channel: "@" + handle, channelUrl: "https://t.me/" + handle, newestId: null };
+    seeded++;
+  } else if (!existing.channel) {
+    existing.channel = "@" + handle;
+    existing.channelUrl = "https://t.me/" + handle;
+    seeded++;
   }
->;
+}
+db.close();
+if (seeded) console.log(`сид из breweries.links: +${seeded} канал(ов) без хинта`);
 
 const idsOf = (html: string, h: string): number[] => {
   const re = new RegExp(`data-post="[^"/]*${h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}/(\\d+)"`, "gi");
@@ -39,6 +82,7 @@ await Bun.$`mkdir -p /tmp/bl-deep`.quiet();
 const out: Record<string, unknown> = {};
 
 for (const [slug, h] of Object.entries(hints)) {
+  if (only.size && !only.has(slug)) continue; // фильтр по slug
   const handle = (h.channel ?? "").replace(/^@/, "");
   if (!handle) continue;
   // Канал с newestId, но БЕЗ единого извлечённого сорта (sortsIngested 0/нет) — никогда успешно
@@ -81,5 +125,8 @@ for (const [slug, h] of Object.entries(hints)) {
 }
 
 await Bun.write("/tmp/bl-deep/channels.json", JSON.stringify(out, null, 1));
+// запрошенные slug'и, по которым не нашлось публичного канала (нет в хинтах и нет tg-ссылки в БД)
+const missed = [...only].filter((s) => !(s in out));
+if (missed.length) console.log(`! без публичного TG-канала (пропущены): ${missed.join(", ")}`);
 const withNew = Object.values(out).filter((c: any) => c.messagesSeen > 0).length;
 console.log(`\nКаналов с новыми постами: ${withNew} из ${Object.keys(out).length}. Дальше — агентное извлечение по ним (см. data/ingest/RUNBOOK.md).`);
