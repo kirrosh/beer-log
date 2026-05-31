@@ -275,3 +275,5 @@ ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивов
 - 2026-05-31 ingest-sorts batch 2 (pipeline-run, чистый код): Untappd ×15 из breweries.links, +340 сортов (validated). Очередь ingest-sorts 16→1. 20 пивоварен в CAPPED (untappd >25, нужна дозагрузка).
 
 - 2026-05-31 TG-ветка hmelnoe-podvore (pipeline-run): полный back-read канала @hmelnoe_podvorye → извлечён ассортимент (7 сортов, validated). Очередь ingest-sorts опустела (1→0). Попутно укреплены ingest-sorts.ts (не клобберит sortsIngested при частичном проходе) и fetch-channels.ts (full back-scan для never-ingested каналов, иначе застревают за newestId).
+
+- 2026-05-31 brewery-research батч ×10 (pipeline-run, итерация): 5 параллельных субагентов ×2 волны, ресёрч без записи в БД → применил последовательно. Найдены источники (Untappd у всех 9, TG у chibis/dwarf/dream-team), проставлены города. Очередь brewery-research 18→8, в ingest-sorts +8, promote-sorts +1 (dream-team, 17 auto). 50-ottenkov-sinego → blocked (закрыта). Города: Омск, Уфа, Москва, НН, Липецк, Кострома, Краснодар, СПб.
