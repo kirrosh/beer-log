@@ -18,7 +18,10 @@ const HINTS = "data/ingest-hints.json";
 const MAX_PAGES = 8; // предохранитель от бесконечного листания
 
 const hints = JSON.parse(await Bun.file(HINTS).text()).breweries as Record<
-  string, { brewery: string; channel: string | null; channelUrl: string | null; newestId: number | null }
+  string, {
+    brewery: string; channel: string | null; channelUrl: string | null; newestId: number | null;
+    sortsIngested?: number | null; status?: string; untappd?: unknown;
+  }
 >;
 
 const idsOf = (html: string, h: string): number[] => {
@@ -38,7 +41,12 @@ const out: Record<string, unknown> = {};
 for (const [slug, h] of Object.entries(hints)) {
   const handle = (h.channel ?? "").replace(/^@/, "");
   if (!handle) continue;
-  const since = FULL ? null : h.newestId; // инкремент: посты с id > since
+  // Канал с newestId, но БЕЗ единого извлечённого сорта (sortsIngested 0/нет) — никогда успешно
+  // не обрабатывался: его ассортимент лежит в истории ЗА newestId, и инкремент его не увидит
+  // никогда (застрял бы навсегда). Для таких — полный back-scan, игнорируя newestId. Но НЕ для
+  // уже признанных мёртвыми (no-feed) или закрытых через другой источник (untappd) — их не дёргаем.
+  const neverIngested = !h.sortsIngested && h.status !== "no-feed" && !h.untappd;
+  const since = FULL || neverIngested ? null : h.newestId; // инкремент: посты с id > since
   try {
     const collected: string[] = [];
     const allIds: number[] = [];

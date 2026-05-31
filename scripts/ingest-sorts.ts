@@ -83,7 +83,9 @@ for (const slug of slugs) {
     messagesSeen: c?.messagesSeen ?? null,
     newestId: c?.newestId ?? prev.newestId ?? null,   // для инкрементального прохода: брать посты новее
     oldestId: c?.oldestId ?? null,   // докуда дочитали назад в этом проходе
-    sortsIngested: ingested,
+    // частичный проход (извлекли не по всем каналам) НЕ должен обнулять счётчик у нетронутых
+    // пивоварен — сохраняем прежний, если в этом проходе по ним сортов не извлекали.
+    sortsIngested: ingested || (prev.sortsIngested ?? 0),
     status: c?.status ?? (row ? "ok" : "no-brewery"),
     // сохраняем блок другого источника (untappd) и его пояснение, если он был
     ...(prev.untappd ? { untappd: prev.untappd } : {}),
