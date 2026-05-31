@@ -271,3 +271,5 @@ brauerei-ponarth, crazy-brew (website+vk) — помечены blocked в overri
 Дашборд: ingested 11 / validated 27 / blocked 3; очередь ingest-sorts 29→19. Субагентов не
 порождал (Agent tool недоступен) — ingest-sorts детерминирован, делал сам. Дальше: остаток
 ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивоварен (не трогаю).
+
+- 2026-05-31 ingest-sorts batch 2 (pipeline-run, чистый код): Untappd ×15 из breweries.links, +340 сортов (validated). Очередь ingest-sorts 16→1. 20 пивоварен в CAPPED (untappd >25, нужна дозагрузка).
