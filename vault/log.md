@@ -273,3 +273,5 @@ brauerei-ponarth, crazy-brew (website+vk) — помечены blocked в overri
 ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивоварен (не трогаю).
 
 - 2026-05-31 ingest-sorts batch 2 (pipeline-run, чистый код): Untappd ×15 из breweries.links, +340 сортов (validated). Очередь ingest-sorts 16→1. 20 пивоварен в CAPPED (untappd >25, нужна дозагрузка).
+
+- 2026-05-31 TG-ветка hmelnoe-podvore (pipeline-run): полный back-read канала @hmelnoe_podvorye → извлечён ассортимент (7 сортов, validated). Очередь ingest-sorts опустела (1→0). Попутно укреплены ingest-sorts.ts (не клобберит sortsIngested при частичном проходе) и fetch-channels.ts (full back-scan для never-ingested каналов, иначе застревают за newestId).
