@@ -14,8 +14,22 @@ import { untappdWebParser } from "@beer-log/parsers";
 
 const HINTS = "data/ingest-hints.json";
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
-const PAGE_CAP = 25; // Untappd отдаёт ~25 сортов на первой странице (дальше — AJAX-догрузка)
 const today = new Date().toISOString().slice(0, 10);
+
+// Пагинация Untappd закрыта за логином (task-16): more_beer анонимно отдаёт пустоту, кнопка
+// Show More → /login. С валидной cookie сессии парсер дочитывает все страницы. Cookie берётся
+// из env UNTAPPD_COOKIE или файла data/.secrets/untappd-cookie.txt (gitignored).
+const PAGINATE = process.env.UNTAPPD_NO_PAGINATE !== "1";
+const hasCookie = Boolean(
+  process.env.UNTAPPD_COOKIE?.trim() ||
+    (await Bun.file("data/.secrets/untappd-cookie.txt").exists().catch(() => false)),
+);
+if (PAGINATE && !hasCookie) {
+  console.log(
+    "! Пагинация включена, но cookie сессии Untappd не найдена (ни UNTAPPD_COOKIE, ни data/.secrets/untappd-cookie.txt).\n" +
+      "  Будет добрано только ~25 сортов/пивоварню. Положи cookie или запусти с UNTAPPD_NO_PAGINATE=1, чтобы убрать это предупреждение.\n",
+  );
+}
 
 // slug пивоварни (как в каталоге) → URL списка сортов на Untappd.
 // Стартовый набор — три дрейф-канала (task-13); расширять сюда же для пивоварен без TG.
@@ -66,17 +80,25 @@ const hintsFile = JSON.parse(await Bun.file(HINTS).text()) as {
   breweries: Record<string, Record<string, unknown>>;
 };
 
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
 let grandTotal = 0;
+let processed = 0;
 for (const [slug, url] of targets) {
   const row = db.query("SELECT id, name FROM breweries WHERE slug = ?").get(slug) as { id: string; name: string } | null;
   if (!row) {
     console.log(`! ${slug}: нет такой пивоварни в каталоге — пропуск`);
     continue;
   }
+  // Анти-бан: пауза между пивоварнями при пагинации (внутри страниц джиттерит сам парсер).
+  if (PAGINATE && hasCookie && processed > 0) await sleep(2000 + Math.floor(Math.random() * 2000));
+  processed++;
   let ingested = 0;
   let status = "ok-untappd";
+  let total: number | null = null;
   try {
-    const r = await untappdWebParser.parse(url);
+    const r = await untappdWebParser.parse(url, { paginate: PAGINATE });
+    total = r.totalAvailable ?? null;
     for (const b of r.beers) {
       if (!b.name) continue;
       upsertBeer(db, {
@@ -91,9 +113,12 @@ for (const [slug, url] of targets) {
       });
       ingested++;
     }
-    const capped = ingested >= PAGE_CAP;
-    console.log(`@untappd ${slug}: сортов ${ingested}${capped ? " (упёрлось в страницу — возможно есть ещё, нужна AJAX-догрузка)" : ""} | ${url}`);
-    if (capped) status = "ok-untappd-capped";
+    // Честное покрытие по реальному тоталу из шапки (а не бинарное «упёрлось в 25»):
+    // partial — добрали меньше заявленного (логин-гейт без cookie / догрузка не дошла).
+    const partial = total != null && ingested < total;
+    const cov = total != null ? ` (${ingested}/${total})` : "";
+    console.log(`@untappd ${slug}: сортов ${ingested}${cov}${partial ? " — недобор, см. cookie/пагинацию" : ""} | ${url}`);
+    if (partial) status = "ok-untappd-partial";
   } catch (e) {
     status = "untappd-error";
     console.log(`@untappd ${slug}: ОШИБКА ${e}`);
@@ -104,7 +129,7 @@ for (const [slug, url] of targets) {
   const prev = hintsFile.breweries[slug] ?? { brewery: row.name };
   hintsFile.breweries[slug] = {
     ...prev,
-    untappd: { url, sortsIngested: ingested, lastRun: today, status },
+    untappd: { url, sortsIngested: ingested, sortsTotal: total, lastRun: today, status },
     // ободряющую заметку ставим только при реальном добре — иначе (0 сортов/ошибка) она вводит в заблуждение
     ...(ingested > 0
       ? { note: "офиц. TG-превью закрыто/нет — сорта бэкфилнуты с Untappd (см. поле untappd)" }

@@ -67,14 +67,18 @@ const brewState = breweries.map((b) => {
   else if (auto > 0) nextAction = `promote-sorts (${auto} auto)`;
   else if (dem.listings === 0) nextAction = "demand: нет листингов (магазин города)";
 
-  // capped: untappd-ингест упёрся в первую страницу (~25 сортов) — есть ещё за AJAX-догрузкой.
-  // Не гейт и не в плане: мягкая очередь на дозагрузку (пагинация пока не реализована).
-  const capped = h.untappd?.status === "ok-untappd-capped";
+  // partial: untappd-ингест добрал меньше реального тотала (логин-гейт без cookie / догрузка не
+  // дошла до конца). Не гейт: мягкая очередь на дозагрузку с авторизованной пагинацией (task-16).
+  // "ok-untappd-capped" — легаси-статус до перехода на честное покрытие, тоже считаем недобором.
+  const partial = h.untappd?.status === "ok-untappd-partial" || h.untappd?.status === "ok-untappd-capped";
+  const untappdCoverage = partial && typeof h.untappd?.sortsTotal === "number"
+    ? { got: (h.untappd.sortsIngested as number) ?? 0, total: h.untappd.sortsTotal as number }
+    : null;
 
   return {
     slug: b.slug, name: b.name, city: b.city, stage,
     sources: [...sources], sorts: { total, validated: val, auto }, demandListings: dem.listings,
-    needsReview: ov.needsReview ?? [], blocked: ov.blocked ?? null, priority: ov.priority ?? null, capped, nextAction,
+    needsReview: ov.needsReview ?? [], blocked: ov.blocked ?? null, priority: ov.priority ?? null, partial, untappdCoverage, nextAction,
   };
 });
 
@@ -143,8 +147,15 @@ for (const [act, slugs] of Object.entries(byAction).sort((a, b) => b[1].length -
 const review = brewState.filter((b) => b.needsReview.length);
 if (review.length) console.log(`\n=== NEEDS-REVIEW (${review.length}) ===\n  ${review.map((b) => b.slug).join(", ")}`);
 
-const capped = brewState.filter((b) => b.capped);
-if (capped.length) console.log(`\n=== CAPPED — untappd >25 сортов, нужна дозагрузка (${capped.length}) ===\n  ${capped.map((b) => b.slug).join(", ")}`);
+const partial = brewState.filter((b) => b.partial);
+if (partial.length) {
+  const gap = partial.reduce((s, b) => s + (b.untappdCoverage ? b.untappdCoverage.total - b.untappdCoverage.got : 0), 0);
+  const top = [...partial]
+    .sort((a, b) => (b.untappdCoverage?.total ?? 0) - (a.untappdCoverage?.total ?? 0))
+    .map((b) => (b.untappdCoverage ? `${b.slug} (${b.untappdCoverage.got}/${b.untappdCoverage.total})` : b.slug))
+    .join(", ");
+  console.log(`\n=== PARTIAL — untappd добрано меньше тотала, нужна авторизованная пагинация (${partial.length}, недобор ~${gap}) ===\n  ${top}`);
+}
 
 console.log("\n=== МАГАЗИНЫ ===");
 for (const s of sellers) console.log(`  ${s.seller.padEnd(20)} листингов ${s.listings} (связано ${s.linked}) | посл. скан ${s.lastSeen}`);

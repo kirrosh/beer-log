@@ -11,6 +11,8 @@ packages/web/build/
 bun.lockb
 # parser run artifacts
 data/raw-snapshots/
+# секреты (cookie авторизованной сессии Untappd для пагинации — task-16)
+data/.secrets/
 .obsidian/workspace*
 # sqlite WAL/shm (временные, сворачиваются чекпоинтом)
 *.sqlite-wal

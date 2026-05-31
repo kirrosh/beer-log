@@ -1,6 +1,6 @@
 import type { Beer, PriceListing, Source } from "@beer-log/catalog-core";
 import { categorizeStyle } from "@beer-log/catalog-core";
-import type { Parser, ParseResult, ParserHealth } from "../types.ts";
+import type { Parser, ParseOptions, ParseResult, ParserHealth } from "../types.ts";
 import { ParserDriftError } from "../types.ts";
 
 /** Один сорт со страницы пивоварни Untappd (untappd.com/<brewery>/beer). */
@@ -20,6 +20,36 @@ export interface UntappdBeer {
 
 const BASE = "https://untappd.com";
 const UA = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36";
+
+// Пагинация Untappd (more_beer) с 2026 закрыта за логином — нужна cookie авторизованной сессии.
+const COOKIE_FILE = "data/.secrets/untappd-cookie.txt"; // gitignored; см. data/.secrets/README.md
+// Анти-бан: бьём по чужому сайту авторизованной сессией — рейт-лимит обязателен. Пауза между
+// запросами догрузки = база + джиттер (рваный ритм меньше похож на бота, чем ровный пулемёт).
+const PAGE_DELAY_MS = 1500; // базовая пауза между more_beer
+const PAGE_JITTER_MS = 1500; // + случайная добавка [0..JITTER], итого ~1.5–3.0с/страница
+const MAX_PAGES = 80; // предохранитель: 80×25 = 2000 сортов потолок (крупнейшая ~530)
+
+/** Cookie сессии: явный аргумент → env UNTAPPD_COOKIE → файл data/.secrets/untappd-cookie.txt. */
+function loadUntappdCookie(explicit?: string): string | null {
+  if (explicit?.trim()) return explicit.trim();
+  const env = process.env.UNTAPPD_COOKIE?.trim();
+  if (env) return env;
+  try {
+    // node:fs доступен в Bun; читаем синхронно — вызывается один раз на ингест пивоварни
+    const fs = require("node:fs") as typeof import("node:fs");
+    const raw = fs.readFileSync(COOKIE_FILE, "utf8").trim();
+    return raw || null;
+  } catch {
+    return null;
+  }
+}
+
+/** Путь AJAX-догрузки сортов из inline-JS страницы: `_apiReqsUrl = "/brewery/more_beer/<id>"`. */
+export function parseUntappdMoreBeerPath(html: string): string | null {
+  return /_apiReqsUrl\s*=\s*"(\/brewery\/more_beer\/\d+)"/.exec(html)?.[1] ?? null;
+}
+
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 function unescapeHtml(s: string): string {
   return s
@@ -43,13 +73,29 @@ function num(s: string | undefined): number | null {
 }
 
 /**
+ * Извлекает заявленное число сортов пивоварни из заголовка профиля Untappd («216 Beers» / «0 Beer»).
+ * Это ИСТИННЫЙ тотал каталога пивоварни, даже если в SSR-списке отдано лишь первые ~25
+ * (остальное Untappd с 2026 прячет за логином — см. healthCheck/`ok-untappd-partial`).
+ * Берём первое вхождение — счётчик самой пивоварни идёт в шапке профиля раньше сайдбара.
+ * `null`, если метки нет (разметка поплыла / нестандартная страница).
+ */
+export function parseUntappdBeerTotal(html: string): number | null {
+  const m = /<a[^>]*>\s*([\d,]+)\s+Beers?\s*<\/a>/.exec(html);
+  if (!m) return null;
+  const n = Number(m[1]!.replace(/,/g, ""));
+  return Number.isFinite(n) ? n : null;
+}
+
+/**
  * Парсит HTML страницы списка сортов пивоварни Untappd (`/beer`).
  * Чистая функция (без сети) — основа для теста/самопроверки разметки.
  */
 export function parseUntappdBeerList(html: string): UntappdBeer[] {
   const out: UntappdBeer[] = [];
-  // блоки сортов: <div class="beer-item " data-bid="…">…
-  const blocks = html.split(/<div class="beer-item "/).slice(1);
+  // блоки сортов: первая (SSR) страница — `<div class="beer-item " data-bid=…>`, а фрагменты
+  // авторизованной догрузки more_beer — `<div class="beer-item" data-bid=…>` (без хвостового
+  // пробела). Опциональный пробел в классе ловит обе формы.
+  const blocks = html.split(/<div class="beer-item ?"/).slice(1);
   for (const blk of blocks) {
     const bid = num(/^\s*data-bid="(\d+)"/.exec(blk)?.[1] ?? undefined);
     const nameM = /class="name"><a[^>]*href="([^"]+)"[^>]*>([^<]+)</.exec(blk);
@@ -111,6 +157,61 @@ function toBeerListUrl(target: string): string {
   return c.url;
 }
 
+/**
+ * Дочитывает сорта СВЕРХ первой страницы через авторизованный AJAX-эндпойнт `more_beer`.
+ * Возвращает только догруженные блоки (без первых ~25 из SSR). Дедуп по bid, пауза между
+ * запросами (PAGE_DELAY_MS) и предохранитель MAX_PAGES. `offset` = число уже отрендеренных
+ * `.beer-item` — ровно как считает сам Untappd (см. sorting.js: `_apiReqsUrl + "/" + count`).
+ * stopped: причина останова (exhausted / reached-total / empty-page / no-new / http-NNN / max-pages)
+ * — для диагностики; `empty-page` сразу на первой догрузке при total>25 обычно значит протухшую cookie.
+ */
+async function fetchMoreBeerPages(
+  morePath: string,
+  cookie: string,
+  referer: string,
+  firstPageCount: number,
+  totalAvailable: number | null,
+): Promise<{ beers: UntappdBeer[]; pages: number; stopped: string }> {
+  const out: UntappdBeer[] = [];
+  const seen = new Set<number>();
+  let offset = firstPageCount;
+  let pages = 0;
+  let stopped = "exhausted";
+  for (; pages < MAX_PAGES; pages++) {
+    if (totalAvailable != null && offset >= totalAvailable) {
+      stopped = "reached-total";
+      break;
+    }
+    await sleep(PAGE_DELAY_MS + Math.floor(Math.random() * PAGE_JITTER_MS));
+    const res = await fetch(`${BASE}${morePath}/${offset}`, {
+      headers: { "User-Agent": UA, Cookie: cookie, "X-Requested-With": "XMLHttpRequest", Referer: referer },
+    });
+    if (!res.ok) {
+      stopped = `http-${res.status}`;
+      break;
+    }
+    const items = parseUntappdBeerList(await res.text());
+    if (items.length === 0) {
+      stopped = "empty-page";
+      break;
+    }
+    let added = 0;
+    for (const it of items) {
+      if (seen.has(it.bid)) continue;
+      seen.add(it.bid);
+      out.push(it);
+      added++;
+    }
+    offset += items.length;
+    if (added === 0) {
+      stopped = "no-new"; // гейт отдал дубликаты — защита от зацикливания
+      break;
+    }
+  }
+  if (pages >= MAX_PAGES) stopped = "max-pages";
+  return { beers: out, pages, stopped };
+}
+
 export const untappdWebParser: Parser = {
   id: "untappd-web",
   description:
@@ -118,17 +219,40 @@ export const untappdWebParser: Parser = {
     "Достаёт имя, стиль, ABV, IBU, описание. Структурированный источник для пивоварен без " +
     "читаемого офиц. TG (дрейф-каналы, без TG). Ломается, если Untappd изменит .beer-item — см. healthCheck.",
 
-  async parse(target: string): Promise<ParseResult> {
+  async parse(target: string, opts?: ParseOptions): Promise<ParseResult> {
     const url = toBeerListUrl(target);
     const res = await fetch(url, { headers: { "User-Agent": UA } });
     if (!res.ok) throw new ParserDriftError("untappd-web", `HTTP ${res.status} для ${url}`);
     const html = await res.text();
     const items = parseUntappdBeerList(html);
-    if (items.length === 0 && html.includes("beer-item")) {
+    const totalAvailable = parseUntappdBeerTotal(html);
+    // Дрейф разметки vs. легитимно пустая пивоварня: раньше бросали по факту строки "beer-item"
+    // в HTML, но она есть и в JS-шаблоне (#menu-template) у пивоварен с «0 Beer» — ложный дрейф.
+    // Теперь решаем по истинному тоталу из шапки: 0 → пусто (норма); >0, но 0 реальных
+    // data-bid-блоков → разметка действительно поплыла.
+    if (items.length === 0 && (totalAvailable === null || totalAvailable > 0) && /data-bid="\d+"/.test(html)) {
       throw new ParserDriftError(
         "untappd-web",
-        "блоки .beer-item в HTML есть, но распарсилось 0 — вероятно изменилась разметка",
+        `0 сортов распарсилось при ${totalAvailable ?? "?"} заявленных и наличии data-bid — изменилась разметка .beer-item`,
       );
+    }
+
+    // Догрузка за первую страницу (опц.): нужна авторизованная сессия — anonymous more_beer пуст.
+    if (opts?.paginate && items.length > 0 && (totalAvailable === null || totalAvailable > items.length)) {
+      const cookie = loadUntappdCookie(opts.cookie);
+      const morePath = parseUntappdMoreBeerPath(html);
+      if (cookie && morePath) {
+        const more = await fetchMoreBeerPages(morePath, cookie, url, items.length, totalAvailable);
+        const seen = new Set(items.map((b) => b.bid));
+        for (const b of more.beers) if (!seen.has(b.bid)) items.push(b);
+        // протухшая cookie / гейт: первая же догрузка пустая при заявленном total>25
+        if (more.beers.length === 0 && more.stopped === "empty-page") {
+          throw new ParserDriftError(
+            "untappd-web",
+            `пагинация дала 0 при ${totalAvailable} заявленных — вероятно cookie сессии Untappd протухла/невалидна`,
+          );
+        }
+      }
     }
 
     const fetchedAt = new Date().toISOString();
@@ -145,19 +269,21 @@ export const untappdWebParser: Parser = {
       };
     });
     const listings: PriceListing[] = [];
-    return { source, beers, listings, unparsed: [], fetchedAt };
+    return { source, beers, listings, unparsed: [], fetchedAt, totalAvailable };
   },
 
   async healthCheck(target: string): Promise<ParserHealth> {
     try {
       const r = await this.parse(target);
       const itemsExtracted = r.beers.length;
-      return {
-        ok: itemsExtracted > 0,
-        itemsSeen: itemsExtracted,
-        itemsExtracted,
-        errors: itemsExtracted === 0 ? ["извлечено 0 сортов — разметка Untappd поплыла"] : [],
-      };
+      // itemsSeen = ИСТИННЫЙ тотал из шапки (а не 25-потолок): так дрейф не маскируется потолком.
+      // Здоров, если извлекли >0 ЛИБО пивоварня легитимно пустая (тотал 0). Недобор из-за
+      // логин-гейта Untappd (extracted < seen) — НЕ ошибка парсера, это потолок анонимного доступа.
+      const itemsSeen = r.totalAvailable ?? itemsExtracted;
+      const ok = itemsExtracted > 0 || r.totalAvailable === 0;
+      const errors: string[] = [];
+      if (!ok) errors.push(`извлечено 0 сортов при ${itemsSeen} заявленных — разметка Untappd поплыла`);
+      return { ok, itemsSeen, itemsExtracted, errors };
     } catch (e) {
       return { ok: false, itemsSeen: 0, itemsExtracted: 0, errors: [String(e)] };
     }
