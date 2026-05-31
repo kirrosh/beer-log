@@ -21,14 +21,21 @@ description: Ресёрч источников одной пивоварни —
    - **VK** — `vk.com/<group>` (часто дублирует TG; парсер VK — TODO).
    - **Сайт** — офиц. домен (каталог редко структурный; обычно ведёт в TG/VK/Untappd).
    - **2ГИС/Яндекс.Карты** — для брёвпабов/городской привязки (позже для demand по городу).
-3. Запиши находки:
-   - в `breweries.links` через `upsertBrewery` (kind: telegram|vk|website|untappd):
-     `bun -e "import {openDb,upsertBrewery} from '@beer-log/store';const db=openDb('data/catalog.sqlite');upsertBrewery(db,{name:'<Name>',slug:'<slug>',links:[{kind:'untappd',url:'...'},{kind:'telegram',url:'...'}]});db.exec('PRAGMA wal_checkpoint(TRUNCATE);');db.close()"`
-   - TG-источник — в `data/ingest-hints.json` (канал/newestId/status), как делает ingest-sorts.
+3. Запиши находки в `breweries.links` (kind: telegram|vk|website|untappd). Один источник =
+   одна запись; `upsertBrewery` мержит по url и заполняет пустой `city`. Записать TG-/untappd-ссылку
+   в `links` ДОСТАТОЧНО — отдельно `ingest-hints.json` руками НЕ трогай: TG-канал подхватит
+   `fetch-channels` сидом из links, untappd-URL берёт `ingest-untappd` тоже из links.
+   - **Соло/последовательно** (один ресёрч за раз) — пиши прямо в БД:
+     `bun -e "import {openDb,upsertBrewery} from '@beer-log/store';const db=openDb('data/catalog.sqlite');upsertBrewery(db,{name:'<Name>',slug:'<slug>',city:'<город>',links:[{kind:'untappd',url:'...'},{kind:'telegram',url:'...'}]});db.exec('PRAGMA wal_checkpoint(TRUNCATE);');db.close()"`
+   - **Параллельно субагентами** (оркестратор pipeline-run, ≤5 разом) — субагенты в БД НЕ пишут
+     (sqlite — один писатель, параллель = гонки/`database is locked`). Каждый ВОЗВРАЩАЕТ строгий
+     JSON `{slug, city, links:[{kind,url,verified,note}], tgHandle, untappdBeerListUrl, blocked}`,
+     а оркестратор применяет результаты ПОСЛЕДОВАТЕЛЬНО (один `upsertBrewery`-проход на батч).
 4. Если источников нет/всё закрыто → отметь блокер в `data/pipeline/overrides.json`
-   (`breweries.<slug>.blocked = "нет публичных источников"`), чтобы не возвращаться.
-5. Дальше — стадия `ingested`: запусти подходящий ингест (Untappd → добавь в
-   `scripts/ingest-untappd.ts` MAP; TG → `fetch-channels`+`ingest-sorts`).
+   (`breweries.<slug>.blocked = "<причина>"`, опц. `blockedAt`), чтобы не возвращаться.
+5. Дальше — стадия `ingested` (отдельная итерация конвейера): ссылка уже в `links`, поэтому
+   ингест запускается без ручной правки скриптов — Untappd → `ingest-untappd.ts <slug…>`
+   (URL из links); TG → `fetch-channels.ts <slug…>` + агентное извлечение + `ingest-sorts.ts`.
 
 ## Правила
 - Верифицируй активность (живой канал/чек-ины), не доверяй устаревшим реестрам.
