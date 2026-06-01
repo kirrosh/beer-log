@@ -379,3 +379,9 @@ B2B-контур сейчас, не «всё пиво», не полнота х�
 Зависимые задачи: task-20 разморожена как есть; task-15 поднята low→medium (consumer-
 facing); task-6 разделена (дайджесты→task-11, TG-промо байерам заморожен); task-7/8
 остаются заморожены как дверь монетизации. Кода не трогали — это стратегическое решение.
+Доп.: заведены 3 страницы под концепты, ранее размазанные по вики — strategy/
+availability-moat.md (граф доступности как первичный ров), strategy/neutrality-as-moat.md
+(нейтральность как второй ров, антипозиция к продавцам-инкумбентам), strategy/
+legal-boundary.md (сведённая юр-рамка ст.21: рыночная инфо vs продвижение). Добавлены в
+index.md + входящие ссылки из gtm/risks/positioning/drift-to-value/mvp-research-mode/
+need-and-demand/competitors/analogs/data-model.

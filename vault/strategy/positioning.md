@@ -37,4 +37,5 @@
 комбуча) — отдельный вопрос скоупа: по умолчанию заводятся листингами без канон-сорта
 (как импорт), в канон — только по явному решению. Решение от 2026-06-01 (Кирилл).
 
-Связано: [[phases]], [[monetization]], `vault/product/data-model.md`.
+Связано: [[phases]], [[monetization]], [[neutrality-as-moat]], [[availability-moat]],
+`vault/product/data-model.md`.
