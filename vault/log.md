@@ -292,3 +292,17 @@ ingest-sorts (19), brewery-research (15); гейт human-review — 8 пивов
 - 2026-06-01 promote-sorts батч ×9 (pipeline-run, 3 субагента ×3): auto→validated по 4-brewers/afbrew/alaska/big-village/brewlok/brewmen/burning/coven/ganza. Merge 67 транслит-дублей (Coven по песням, АФ Брю-серия, brewlok-тома), drop 5 (хард-зельтцеры/перри AF Brew), validate чистых. Очередь promote-sorts 29→20, auto 588→514, validated-пивоварен 134→137, сортов 17079→17012 (схлоп дублей). 14 спорных → human-review (generic-имена «Pilsner/Party Hop», таро-серия 4brewers, неузнанные SKU). Следующий приоритет — остаток promote-sorts (20).
 
 - 2026-06-01 sweep продолжение — promote-sorts батч 3 + ingest-sorts разбор (pipeline-run). Промоушн ×10 (paradox/plan-b/sabotage/salden-s/selfmade/velka-morava/zagovor/avgustin/bakunin/volkovskaya): validate 274, merge 44, drop 10 — очередь promote-sorts 12→2 (panzer/vasileostrovskaya: остаток в human-review). ingest-sorts (4: harvest/monkfish/spaceman/hod-konem) — диагностика 5 субагентами (вкл. greybrewery research): у ВСЕХ Untappd = «0 Beer»/«no longer in business», TG-хэндлы = личные контакт-карточки (не каналы), VK не парсится → верифицированно blocked (не слепо). blocked 67→72, sourced→0. ИТОГ sweep: auto 588→178, validated-сортов 16308→16696, validated-пивоварен 134→140, supply-план БЕЗ ГЕЙТОВ пуст. Остаток — гейты: human-review 24 (спорные имена), demand 130 (нужны магазины/города = скоуп человека).
+
+## [2026-06-01] human-review | Гейт спорных сортов разобран целиком (155→0)
+Прошли весь гейт human-review (155 позиций по 25 пивоварням). Метод: стратегию/скоуп
+спрашивали у Кирилла (интерактивно), спорные сорта разрешали ВЕБ-РЕСЁРЧЕМ субагентами
+(Untappd/leolsbeer/craftbeer78/beerkontora/pivokom/BeerAdvocate), не вопросами — по явному
+указанию Кирилла (memory resolve-disputes-by-research). Итог: validate ~90, merge ~50,
+drop ~25. Стратегия: безалкогольное пиво — В СКОУПЕ (positioning.md), Б/А-сорта валидируем
+(«(Б/А)»); сидр/зельтцер/лимонад (Bakunin Botanicals «Ягоды и Ёлки») — listings-only, drop из
+канона. Дропы-мисматчи: Verhaeghe Vichtenaar (бельг.), Van Steenberge Augustijn (avgustin),
+Desitka Svetle Vycepni (чеш. импорт у konix), Амнезия (hophead-сорт у brewmen). Инструмент
+scripts/resolve-review.ts (validate/merge/drop + пересборка needsReview из promotions, дедуп
+по slug); решения по раундам — data/pipeline/review-rounds/*.json. Дашборд: validated-пивоварен
+140→164, auto-сортов 159→40, needsReview 0. Остаток supply: promote-sorts 2 (panzer/
+vasileostrovskaya, обычные auto, не гейт), demand 133 (нужны магазины/города = скоуп).
