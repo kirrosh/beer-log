@@ -25,7 +25,10 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 22 | Архитектура «ресёрчеров» по сущностям (единый контракт + единый shop-ingest) | To Do · high · foundational |
+| 22 | Архитектура «ресёрчеров» по сущностям (контракт + манифесты) | In Progress · #1-4 done (контракт+доки), #5→task-23 |
+| 23 | Единый shop-ingest по платформе (конфиг вместо bespoke-скрипта) | To Do · high · proof контракта (= task-22 #5) |
+| 24 | Brewery-ресёрчер: refresh/liveness переобход источников | To Do · medium |
+| 25 | Shop-ресёрчер: recurring/freshness перескан по расписанию | To Do · medium |
 | 13 | VK-парсер офиц. каналов (TG-сторона уже Done) | In Progress · VK остаток |
 | 17 | fetch-channels: глубокий back-scan never-ingested | To Do |
 | 2 | Telegram-парсер «боевой» (raw-снапшоты/healthCheck) | To Do · low |

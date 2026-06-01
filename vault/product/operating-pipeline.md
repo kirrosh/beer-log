@@ -48,6 +48,11 @@
 `parseInsalesProducts` магазины). Новый источник → новый парсер по интерфейсу `Parser`
 ([[parser-architecture]], самовосстановление по `healthCheck`).
 
+Скиллы + скрипты + раннбуки + данные каждой сущности собраны в **бандлы-«ресёрчеры»** с
+единым контрактом (глаголы жизненного цикла, владеемые действия очереди, model-тиринг,
+гейты) — [[entity-researchers]] (TASK-22). Эти стадии/скрипты/скиллы — их частные
+реализации; спайн оркестрации ниже ресёрчеры не трогают.
+
 ## Цикл одного витка (полу-автономно)
 
 1. `pipeline-status.ts` → очередь действий (что на какой стадии застряло).
@@ -72,4 +77,4 @@
 (~458 validated / ~520 auto), 3 магазина (beerkontora 3641 листинг), 39 городов.
 
 Связано: [[autonomy]], [[sourcing-strategy]], [[parser-architecture]], [[data-model]],
-[[mvp]], `data/ingest/RUNBOOK.md`, `AGENTS.md`.
+[[entity-researchers]], [[mvp]], `data/ingest/RUNBOOK.md`, `AGENTS.md`.

@@ -3,7 +3,7 @@ id: TASK-22
 title: >-
   Архитектура «ресёрчеров» по сущностям: единый контракт (пивоварня / сорт /
   магазин) — skill + скрипты + инструкции + данные
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-06-01 17:10'
 labels:
@@ -48,11 +48,11 @@ control-plane. Из-за этого (а) per-source ingest-скрипты пло
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Определён контракт «Ресёрчера»: общие глаголы жизненного цикла (discover → research/source → ingest/parse → match/dedup → validate/curate → refresh → report-stage), единая конвенция per-instance state, model-тиринг (haiku/sonnet/opus, см. память), гейты (human-review)
-- [ ] #2 Контракт описан в вики (новая `vault/product/entity-researchers.md` + правки `operating-pipeline.md` и `AGENTS.md`); каждый ресёрчер декларирует, какие действия `pipeline-status --plan` он owns
-- [ ] #3 Существующее разложено по бандлам сущностей (манифест на сущность: какой skill, какие скрипты, какой раннбук, какие data-файлы) — без переписывания, организация того, что есть
-- [ ] #4 Явно выписаны пробелы по каждой сущности (см. ниже) с приоритетами и под-задачами
-- [ ] #5 Первый консолидационный срез реализован: единый shop-ingest по платформе (bitrix/woocommerce/insales/custom-json/telegram) — новый магазин = конфиг в `shops.json`, а не новый bespoke-скрипт. На нём контракт проверен «в бою»
+- [x] #1 Определён контракт «Ресёрчера»: общие глаголы жизненного цикла (discover → research/source → ingest/parse → match/dedup → validate/curate → refresh → report-stage), единая конвенция per-instance state, model-тиринг (haiku/sonnet/opus, см. память), гейты (human-review)
+- [x] #2 Контракт описан в вики (новая `vault/product/entity-researchers.md` + правки `operating-pipeline.md` и `AGENTS.md`); каждый ресёрчер декларирует, какие действия `pipeline-status --plan` он owns
+- [x] #3 Существующее разложено по бандлам сущностей (манифест на сущность: какой skill, какие скрипты, какой раннбук, какие data-файлы) — без переписывания, организация того, что есть
+- [x] #4 Явно выписаны пробелы по каждой сущности (см. ниже) с приоритетами и под-задачами
+- [ ] #5 Первый консолидационный срез реализован: единый shop-ingest по платформе (bitrix/woocommerce/insales/custom-json/telegram) — новый магазин = конфиг в `shops.json`, а не новый bespoke-скрипт. На нём контракт проверен «в бою» → вынесено в **TASK-23**
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -98,4 +98,16 @@ shop-unified-ingest, recurring-freshness) заводим из #4.
 форма), [[parser-architecture]] (само-восстановление парсеров на уровне shop-ресёрчера),
 [[sourcing-strategy]]; память: model-тиринг субагентов, breadth-backfill,
 draft-bar-tg-taplist. Не дублировать существующие скиллы — задача их БАНДЛИТ.
+
+**Сделано (2026-06-01, #1-4 — консолидация):** написан контракт в новой
+`vault/product/entity-researchers.md` (глаголы жизненного цикла, конвенция per-instance
+state, model-тиринг, гейты, декларация «владеемых действий» очереди — один action → один
+ресёрчер) + манифесты 4 бандлов (brewery / sort / shop / city-как-scope-юнит) +
+таблица пробелов→под-задач. Вписано в `operating-pipeline.md` и `AGENTS.md`, индекс и
+log обновлены. Пробелы заведены под-задачами: **TASK-23** (единый shop-ingest по
+платформе = #5, proof), **TASK-24** (brewery refresh/liveness), **TASK-25** (shop
+recurring/freshness); VK = TASK-13, самовосстановление парсеров = TASK-5, провенанс =
+TASK-21 — уже есть. Спайн оркестрации (pipeline-status --plan → pipeline-run) не тронут.
+
+**Осталось:** #5 — реализация единого shop-ingest, ведётся в **TASK-23**.
 <!-- SECTION:NOTES:END -->
