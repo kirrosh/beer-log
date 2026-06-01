@@ -3,7 +3,7 @@ id: TASK-23
 title: >-
   Единый shop-ingest по платформе: новый магазин = конфиг в shops.json, а не
   bespoke-скрипт (proof контракта ресёрчеров)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-01 17:40'
 labels:
@@ -36,8 +36,8 @@ proof контракта shop-ресёрчера «в бою»: глагол `in
 <!-- AC:BEGIN -->
 - [x] #1 Платформенный ingest-движок: `ingest-shop-platform.ts <id>` читает `ingestConfig` из `shops.json`, диспетчит на адаптер платформы, пишет листинги общим путём (`scripts/lib/shop-ingest.ts`: matcher + recordListing + stats/примеры, DRY/PAGES-override)
 - [x] #2 Парсеры по платформе вынесены в `@beer-log/parsers` (`shops/platforms.ts`): `parseWoocommerce`/`parseBitrixCatalog`/`parseStorebeerPage`/`parseTelegramTapList` + общие `decodeEntities`/`parseVolumeMl`/`NONBEER`/`looksLikeBeerLine` — чистые, без сети
-- [~] #3 `shops.json` расширен `ingestConfig` (platform/seller/idPrefix/endpoint/catalogs/idRegex/…); 5 магазинов мигрированы; bespoke-скрипты помечены DEPRECATED (удаление — после полного регресса #4)
-- [~] #4 Смоук-регресс DRY (1-2 стр) по всем 4 платформам пройден; telegram кросс-чек 47+20=67 точно сходится с заметкой. Полный регресс (все страницы, сверка тоталов 297/1770/1947/149) — остаток
+- [x] #3 `shops.json` расширен `ingestConfig` (platform/seller/idPrefix/endpoint/catalogs/idRegex/…); 5 магазинов мигрированы; **5 bespoke-скриптов удалены** (ingest-kraftbeer/pivokom/storebeer/rusbeershop/vashchehov)
+- [x] #4 Полный регресс DRY (все страницы) пройден, тоталы сверены с живой БД: kraftbeer 295=295, pivokom 1770=1770, vashchehov 148=148 (точно); storebeer 1941 vs 1947 (±6: шире NONBEER + дрейф); rusbeershop 8797 — первый скан (раньше не сканировался, листингов в БД не было)
 - [x] #5 Обновлены `operating-pipeline.md` (таблица скриптов) и манифест shop-ресёрчера в `entity-researchers.md`
 
 ## Implementation Notes
@@ -60,8 +60,11 @@ proof контракта shop-ресёрчера «в бою»: глагол `in
 уже наполненного канона brewOnly→0). beerkontora (by-collection InSales) остаётся отдельным
 `ingest-shop.ts` — иная стратегия (коллекция=пивоварня), не плоский каталог.
 
-**Остаток:** (1) полный регресс-прогон DRY по каждому магазину (все страницы) — сверить
-тоталы с заметками (kraftbeer 297 / pivokom 1770 / storebeer 1947 / rusbeershop ~2000+ /
-vashchehov 149); (2) после сверки — удалить 5 bespoke-скриптов (помечены DEPRECATED);
-(3) опц. адаптер `insales-flat` для craftbeer78/leolsbeer (сейчас blocked по др. причинам).
+**Завершено (2026-06-01):** полный регресс DRY пройден, тоталы сверены с живой БД —
+kraftbeer 295=295, pivokom 1770=1770, vashchehov 148=148 (точно); storebeer 1941 vs 1947
+(±6: NONBEER шире + дрейф); rusbeershop 8797 = первый скан (раньше не сканировался). 5
+bespoke-скриптов удалены, ссылки в доках перенаправлены на движок. typecheck чист.
+
+**Не делалось (отдельно):** адаптер `insales-flat` для craftbeer78/leolsbeer (сейчас
+blocked по др. причинам — AJAX-пагинация/нет цен в каталоге); recurring-перескан — TASK-25.
 <!-- SECTION:NOTES:END -->

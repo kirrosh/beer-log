@@ -116,7 +116,7 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 | Данные | реестр `data/pipeline/shops.json` (+ `ingestConfig`: platform/seller/idPrefix/endpoint/catalogs/…) |
 | Владеет action | `demand` (скан магазинов города) |
 | Стадия из | `shops.json` (status/lastScan) + наличие листингов в `price_listings` |
-| **Пробел (закрывается)** | единый ingest по платформе — **TASK-23** (движок готов, bespoke-скрипты к удалению после полного регресса). Остаётся `recurring/freshness` (TASK-25) + самовосстановление парсера ([[parser-architecture]], TASK-5) |
+| **Пробел (закрыт)** | единый ingest по платформе — **TASK-23 Done** (движок + 5 магазинов на конфиге, bespoke-скрипты удалены, регресс сверён). Остаётся `recurring/freshness` (TASK-25) + самовосстановление парсера ([[parser-architecture]], TASK-5) |
 
 ### 4. City/geo
 

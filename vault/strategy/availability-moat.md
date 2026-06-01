@@ -49,8 +49,8 @@
 тут» + **дата снапшота**. Это снимает «стену источников» ([[drift-to-value]]): можно
 тянуть ненадёжные freeform-источники (TG-тап-листы баров), потому что best-effort с
 датой — уже ценность. Источник ребра = что угодно публичное: e-commerce каталог,
-сайт магазина, **TG-канал бара** (паттерн «бар → тап-лист»,
-`scripts/ingest-vashchehov.ts`, memory `draft-bar-tg-taplist`).
+сайт магазина, **TG-канал бара** (паттерн «бар → тап-лист» — платформа `telegram`
+единого shop-ingest, `parseTelegramTapList`; memory `draft-bar-tg-taplist`).
 
 ## Открыто vs под замком
 

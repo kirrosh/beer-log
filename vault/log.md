@@ -3,6 +3,20 @@
 Хронология работы над вики. Префикс строки: `## [YYYY-MM-DD] <тип> | <тема>`.
 Парсится юникс-тулзами: `grep "^## \[" log.md | tail -5`.
 
+## [2026-06-01] infra | task-23 — единый shop-ingest по платформе (proof контракта ресёрчеров)
+Diff: bespoke-скрипт-на-магазин (5 шт) заменён единым движком, параметризованным платформой.
+Чистые парсеры по платформе → @beer-log/parsers (shops/platforms.ts): parseWoocommerce/
+parseBitrixCatalog/parseStorebeerPage/parseTelegramTapList + общие decodeEntities/
+parseVolumeMl/NONBEER/looksLikeBeerLine + тип ShopItem. Движок scripts/lib/shop-ingest.ts:
+сеть+пагинация (адаптеры-генераторы со своей пагинацией+стоп) + общий пайплайн matcher→
+recordListing→stats/примеры (DRY, PAGES-override, глоб. дедуп по extId). CLI ingest-shop-
+platform.ts <id|--all> читает shops.json.ingestConfig. Магазин = конфиг, не скрипт.
+Регресс DRY (все страницы) сверён с живой БД: kraftbeer 295=295, pivokom 1770=1770,
+vashchehov 148=148 (точно); storebeer 1941 vs 1947 (±6: шире NONBEER+дрейф); rusbeershop
+8797 = первый скан (раньше не сканировался). 5 bespoke удалены, ссылки в доках на движок.
+typecheck чист. beerkontora (by-collection InSales) остаётся отдельным ingest-shop.ts.
+Закрывает task-23 (= task-22 #5, proof shop-ресёрчера «в бою»).
+
 ## [2026-06-01] product | task-22 — контракт «ресёрчеров» по сущностям (консолидация #1-4)
 Diff: тулинг, разложенный по СТАДИЯМ, формализован в сущностные бандлы-«ресёрчеры» без
 переписывания рабочего конвейера. Новая страница [[entity-researchers]]: контракт
