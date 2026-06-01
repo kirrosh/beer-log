@@ -119,6 +119,10 @@ export function plur(n: number, one: string, few: string, many: string): string 
 export const sellerLabel = (seller: string): string =>
   seller.startsWith("t.me/") ? "@" + seller.slice("t.me/".length) : seller.replace(/^www\./, "");
 
+/** Ссылка на источник продавца (сайт магазина / TG-канал бара). Не «купи здесь», а провенанс. */
+export const sellerUrl = (seller: string): string =>
+  seller.startsWith("http") ? seller : `https://${seller}`;
+
 export const SELLER_KIND_LABEL: Record<SellerKind, string> = { shop: "магазин", bar: "бар", opt: "опт" };
 
 /** Метка формата: bottle→бутылка, can→банка, keg→кег, draft→разлив. */

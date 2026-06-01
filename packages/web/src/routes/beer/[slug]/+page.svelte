@@ -1,6 +1,6 @@
 <script lang="ts">
   import { catMeta } from "$lib/styles";
-  import { fmtPrice, plur, sellerLabel, SELLER_KIND_LABEL, formatLabel } from "$lib/catalog";
+  import { fmtPrice, plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, formatLabel } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const beer = $derived(data.beer);
@@ -44,7 +44,7 @@
       <div class="places">
         {#each beer.demand.places as p}
           <div class="place" class:opt={p.kind === "opt"}>
-            <span class="snm">{sellerLabel(p.seller)}<span class="kind k-{p.kind}">{SELLER_KIND_LABEL[p.kind]}</span></span>
+            <span class="snm"><a class="slink" href={sellerUrl(p.seller)} target="_blank" rel="noopener">{sellerLabel(p.seller)} ↗</a><span class="kind k-{p.kind}">{SELLER_KIND_LABEL[p.kind]}</span></span>
             <span class="fmts">{#each p.formats as f}<span class="fmt">{formatLabel(f)}</span>{/each}</span>
             <span class="pr mono" class:disc={p.discounted}>
               {#if p.kind === "opt"}опт{:else if p.minPrice != null}от {fmtPrice(p.minPrice)}{:else if p.kind === "bar"}разлив{:else}—{/if}
@@ -123,6 +123,7 @@
   .place:last-child { border-bottom: none; }
   .place.opt { border-left-color: var(--line-strong); }
   .snm { font-weight: 500; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .slink { color: var(--ink); transition: color 0.15s; } .slink:hover { color: var(--amber); }
   .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
   .kind.k-bar { color: var(--c-specialty); border-color: color-mix(in srgb, var(--c-specialty) 40%, var(--line)); }
   .kind.k-opt { color: var(--ink-faint); }

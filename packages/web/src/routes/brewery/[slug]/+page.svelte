@@ -1,6 +1,6 @@
 <script lang="ts">
   import { catMeta, LINK_LABEL } from "$lib/styles";
-  import { plur, sellerLabel, SELLER_KIND_LABEL } from "$lib/catalog";
+  import { plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const brewery = $derived(data.brewery);
@@ -42,7 +42,7 @@
       <div class="places">
         {#each brewery.demand.places as p}
           <span class="place" class:opt={p.kind === "opt"}>
-            <span class="snm">{sellerLabel(p.seller)}</span>
+            <a class="snm slink" href={sellerUrl(p.seller)} target="_blank" rel="noopener">{sellerLabel(p.seller)} ↗</a>
             <span class="kind k-{p.kind}">{SELLER_KIND_LABEL[p.kind]}</span>
             <span class="cnt mono">{p.listedBeers} {plur(p.listedBeers, "сорт", "сорта", "сортов")}</span>
           </span>
@@ -101,7 +101,8 @@
   .places { display: flex; flex-wrap: wrap; gap: 8px; }
   .place { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-left: 2px solid var(--amber-dim); border-radius: var(--r); padding: 7px 12px; background: var(--bg-elev); }
   .place.opt { border-left-color: var(--line-strong); }
-  .place .snm { font-weight: 500; font-size: 14px; }
+  .place .snm { font-weight: 500; font-size: 14px; color: var(--ink); transition: color 0.15s; }
+  .place .slink:hover { color: var(--amber); }
   .place .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
   .place .kind.k-bar { color: var(--c-specialty); border-color: color-mix(in srgb, var(--c-specialty) 40%, var(--line)); }
   .place .cnt { font-size: 12px; color: var(--ink-dim); }
