@@ -4,15 +4,14 @@ title: Офиц. изображения пивоварен и сортов (ло
 status: To Do
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:57'
+updated_date: '2026-06-01 16:10'
 labels:
   - catalog
   - web
-  - deferred
 milestone: 'M2: Дрейф к реальной пользе'
 dependencies:
   - task-12
-priority: low
+priority: medium
 ---
 
 ## Description
@@ -41,5 +40,5 @@ priority: low
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
-Приоритет зависит от task-19: если первичная аудитория = конечный потребитель, изображения (лого/этикетки) поднимаются в важности (consumer-facing мета). Подход — ссылки на офиц. источники, без рехостинга (копирайт).
+task-19 закрыта (2026-06-01): первичная аудитория = конечный потребитель → изображения (лого/этикетки) поднялись в важности (consumer-facing мета), приоритет low→medium. Подход — ссылки на офиц. источники, без рехостинга (копирайт).
 <!-- SECTION:NOTES:END -->
