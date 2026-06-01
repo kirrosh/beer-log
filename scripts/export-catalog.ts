@@ -3,6 +3,7 @@
 // этот снапшот (никакой БД в рантайме). Перегенерировать после ingest/seed.
 // Запуск: bun run scripts/export-catalog.ts   (env DB_PATH опц.)
 import { Database } from "bun:sqlite";
+import { sourceChannelOfUrl, type SourceChannel } from "@beer-log/parsers";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const OUT = "packages/web/src/lib/data/catalog.json";
@@ -50,6 +51,12 @@ const beersAll = (db.query(
     .map((s) => s.excerpt)
     .filter((e): e is string => !!e)
     .sort((a, b) => b.length - a.length)[0] ?? null;
+  // Провенанс «подтверждён пивоварней» (task-21): виды офиц. каналов из host beer_sources.
+  // Магазины тут не появляются (shop-ингест пишет только в price_listings). Пустой массив ⇒
+  // у пивоварни сорт не подтверждён; «в продаже» считается отдельно из demand (ниже).
+  const channels = [...new Set(
+    srcs.map((s) => sourceChannelOfUrl(s.source_url)).filter((c): c is SourceChannel => !!c),
+  )].sort();
   // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка +
   // диапазон РОЗНИЧНЫХ цен. Из «цены» исключаем опт (за упаковку) и кег (30л — не
   // потребительская розница), иначе «от/до» врут. reach = число продавцов (опт входит).
@@ -105,6 +112,7 @@ const beersAll = (db.query(
     ibu: (r.ibu as number) ?? null,
     status: (r.status as string) ?? "auto",
     description,
+    channels,
     sources: [...new Set(srcs.map((s) => s.source_url))],
     aliases: JSON.parse((r.aliases as string) || "[]") as string[],
     demand,
@@ -158,6 +166,9 @@ const snapshot = {
     beers: beers.length,
     cities: new Set(breweriesOut.map((b) => b.city).filter(Boolean)).size,
     beersWithDemand: beers.filter((b) => b.demand).length,
+    // провенанс (task-21): подтверждён офиц. каналом пивоварни / только в продаже у магазина
+    beersVerifiedByBrewery: beers.filter((b) => b.channels.length).length,
+    beersShopOnly: beers.filter((b) => b.demand && !b.channels.length).length,
   },
   breweries: breweriesOut,
   beers,

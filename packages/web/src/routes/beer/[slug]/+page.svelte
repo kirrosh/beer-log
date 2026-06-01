@@ -1,12 +1,16 @@
 <script lang="ts">
   import { catMeta } from "$lib/styles";
-  import { fmtPrice, plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, formatLabel } from "$lib/catalog";
+  import { fmtPrice, plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, formatLabel,
+    CHANNEL_LABEL, beerConfidence } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const beer = $derived(data.beer);
   const brewery = $derived(data.brewery);
   const siblings = $derived(data.siblings);
   const m = $derived(catMeta(beer.style?.category));
+  // провенанс (task-21): два рыночных сигнала + их комбинация
+  const conf = $derived(beerConfidence(beer));
+  const channelNames = $derived(beer.channels.map((c) => CHANNEL_LABEL[c]).join(" · "));
   const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, ""); } catch { return u; } };
   // дата самого свежего снапшота среди точек продажи (данные best-effort, не живой остаток)
   const lastSeen = $derived(
@@ -35,8 +39,24 @@
   <div class="cells">
     <div class="cell"><div class="cn mono">{beer.abv != null ? beer.abv.toFixed(1) : "—"}<i>%</i></div><div class="cl">алкоголь</div></div>
     <div class="cell"><div class="cn mono">{beer.ibu ?? "—"}</div><div class="cl">IBU</div></div>
-    <div class="cell"><div class="cn st" class:val={beer.status === "validated"}>{beer.status === "validated" ? "✓" : "~"}</div><div class="cl">{beer.status === "validated" ? "из офиц. канала" : "не подтверждён"}</div></div>
   </div>
+
+  <!-- Провенанс (task-21): два независимых рыночных сигнала + комбинированная уверенность -->
+  <section class="prov" class:gap={conf === "shop"}>
+    <span class="sig" class:on={beer.channels.length}>
+      <i class="mk">{beer.channels.length ? "✓" : "·"}</i>
+      <span class="st">варит пивоварня</span>
+      {#if beer.channels.length}<span class="sub">по {channelNames}</span>{:else}<span class="sub off">у пивоварни не подтверждён</span>{/if}
+    </span>
+    <span class="sig" class:on={beer.demand}>
+      <i class="mk">{beer.demand ? "✓" : "·"}</i>
+      <span class="st">в продаже</span>
+      {#if beer.demand}<span class="sub">{beer.demand.reach} {plur(beer.demand.reach, "точка", "точки", "точек")}</span>{:else}<span class="sub off">у продавцов не найден</span>{/if}
+    </span>
+    {#if conf === "shop"}
+      <span class="hint">в продаже есть, но у пивоварни не подтверждён — кандидат на проверку каналов</span>
+    {/if}
+  </section>
 
   {#if beer.demand?.places.length}
     <section class="block where">
@@ -102,11 +122,23 @@
   .styline { display: flex; align-items: center; gap: 12px; margin-top: 14px; }
   .sn { color: var(--ink-dim); font-size: 14px; }
 
-  .cells { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin: 6px 0 8px; }
+  .cells { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; margin: 6px 0 8px; }
   .cell { border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; background: var(--bg-elev); }
   .cn { font-size: 32px; font-weight: 500; line-height: 1; color: var(--ink); } .cn i { font-size: 16px; color: var(--ink-faint); font-style: normal; margin-left: 2px; }
-  .cn.st { color: var(--ink-faint); } .cn.st.val { color: var(--c-specialty); }
   .cl { margin-top: 8px; font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.5px; color: var(--ink-faint); }
+
+  /* Провенанс — два рыночных сигнала (task-21) */
+  .prov { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0 4px; }
+  .sig { display: inline-flex; align-items: baseline; gap: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 15px; background: var(--bg-elev); }
+  .sig .mk { font-style: normal; color: var(--ink-faint); font-size: 14px; width: 1ch; text-align: center; }
+  .sig.on { border-color: color-mix(in srgb, var(--c-specialty) 38%, var(--line)); }
+  .sig.on .mk { color: var(--c-specialty); }
+  .sig .st { font-weight: 500; color: var(--ink); font-size: 14px; }
+  .sig .sub { color: var(--ink-dim); font-size: 12.5px; }
+  .sig .sub.off { color: var(--ink-faint); }
+  .prov .hint { flex-basis: 100%; font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
+  .prov.gap .sig:first-child { border-color: color-mix(in srgb, var(--amber) 34%, var(--line)); }
+  .prov.gap .sig:first-child .sub.off { color: var(--amber-dim); }
 
   .block { margin-top: 28px; }
   .block h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-faint); margin-bottom: 12px; }

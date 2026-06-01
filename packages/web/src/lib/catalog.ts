@@ -25,10 +25,12 @@ export interface Brewery {
   demand: BreweryDemand | null;
 }
 export interface Style { slug: string; name: string | null; category: string }
+/** Вид офиц. источника пивоварни (провенанс, task-21). Магазины сюда не входят. */
+export type SourceChannel = "untappd" | "telegram" | "vk" | "website";
 export interface Beer {
   slug: string; name: string; brewerySlug: string | null; breweryName: string | null;
   style: Style | null; abv: number | null; ibu: number | null; status: string;
-  description: string | null; sources: string[]; aliases: string[];
+  description: string | null; channels: SourceChannel[]; sources: string[]; aliases: string[];
   demand: BeerDemand | null;
 }
 
@@ -128,3 +130,27 @@ export const SELLER_KIND_LABEL: Record<SellerKind, string> = { shop: "магаз
 /** Метка формата: bottle→бутылка, can→банка, keg→кег, draft→разлив. */
 export const formatLabel = (f: string): string =>
   (({ bottle: "бутылка", can: "банка", keg: "кег", draft: "разлив" }) as Record<string, string>)[f] ?? f;
+
+// ── Провенанс сорта (task-21): два независимых рыночных сигнала ──────────────
+// Не рейтинги — наблюдаемые факты (рамка vault/strategy/legal-boundary.md).
+/** Человекочитаемое имя офиц. канала пивоварни. */
+export const CHANNEL_LABEL: Record<SourceChannel, string> = {
+  untappd: "Untappd", telegram: "Telegram", website: "сайт", vk: "VK",
+};
+/** «✓ варит пивоварня» подтверждён — есть офиц. источник в beer_sources. */
+export const verifiedByBrewery = (b: Beer): boolean => b.channels.length > 0;
+/** «в продаже» — встречается у продавцов (demand из task-20). */
+export const inShops = (b: Beer): boolean => !!b.demand;
+
+/**
+ * Комбинированная уверенность записи:
+ *  both    — варится И в продаже (полный профиль, самый ценный сорт);
+ *  brewery — подтверждён пивоварней, в продаже пока не найден;
+ *  shop    — в продаже, но у пивоварни НЕ подтверждён (рабочая очередь прохода по каналам);
+ *  none    — ни одного сигнала.
+ */
+export type Confidence = "both" | "brewery" | "shop" | "none";
+export function beerConfidence(b: Beer): Confidence {
+  const v = verifiedByBrewery(b), s = inShops(b);
+  return v && s ? "both" : v ? "brewery" : s ? "shop" : "none";
+}

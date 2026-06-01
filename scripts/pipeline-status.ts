@@ -48,6 +48,16 @@ const brewState = breweries.map((b) => {
   ).get(b.id) as { listings: number };
   const total = counts.total ?? 0, val = counts.val ?? 0, auto = counts.auto ?? 0;
 
+  // провенанс сортов (task-21): подтверждён офиц. каналом (есть beer_sources) vs только в продаже
+  // у магазина (есть листинг, beer_sources нет) — последнее = рабочая очередь прохода по каналам.
+  const prov = db.query(
+    `SELECT
+       SUM(CASE WHEN EXISTS(SELECT 1 FROM beer_sources s WHERE s.beer_id = be.id) THEN 1 ELSE 0 END) official,
+       SUM(CASE WHEN EXISTS(SELECT 1 FROM price_listings pl WHERE pl.beer_id = be.id AND pl.seller IS NOT NULL)
+                 AND NOT EXISTS(SELECT 1 FROM beer_sources s WHERE s.beer_id = be.id) THEN 1 ELSE 0 END) shopOnly
+     FROM beers be WHERE be.brewery_id = ?`,
+  ).get(b.id) as { official: number; shopOnly: number };
+
   const stage =
     ov.blocked ? "blocked"
     : val > 0 && auto === 0 ? "validated"
@@ -78,6 +88,7 @@ const brewState = breweries.map((b) => {
   return {
     slug: b.slug, name: b.name, city: b.city, stage,
     sources: [...sources], sorts: { total, validated: val, auto }, demandListings: dem.listings,
+    provenance: { official: prov.official ?? 0, shopOnly: prov.shopOnly ?? 0 },
     needsReview: ov.needsReview ?? [], blocked: ov.blocked ?? null, priority: ov.priority ?? null, partial, untappdCoverage, nextAction,
   };
 });
@@ -136,6 +147,20 @@ console.log("\n=== ПИВОВАРНИ по стадиям ===");
 for (const s of ["discovered", "sourced", "ingested", "validated", "blocked"])
   if (byStage[s]) console.log(`  ${s.padEnd(12)} ${byStage[s]}`);
 console.log(`  ИТОГО ${brewState.length} | сортов ${brewState.reduce((a, b) => a + b.sorts.total, 0)} (validated ${brewState.reduce((a, b) => a + b.sorts.validated, 0)} / auto ${brewState.reduce((a, b) => a + b.sorts.auto, 0)})`);
+
+// провенанс сортов (task-21): покрытие офиц. каналом vs «только магазин» (рабочая очередь)
+const totalSorts = brewState.reduce((a, b) => a + b.sorts.total, 0);
+const verified = brewState.reduce((a, b) => a + b.provenance.official, 0);
+const shopOnly = brewState.reduce((a, b) => a + b.provenance.shopOnly, 0);
+const shopOnlyBrews = brewState.filter((b) => b.provenance.shopOnly > 0)
+  .sort((a, b) => b.provenance.shopOnly - a.provenance.shopOnly);
+const pct = (n: number) => totalSorts ? `${((n / totalSorts) * 100).toFixed(0)}%` : "—";
+console.log("\n=== ПРОВЕНАНС СОРТОВ (task-21) ===");
+console.log(`  подтверждён офиц. каналом пивоварни ${verified} (${pct(verified)})`);
+console.log(`  только в продаже у магазина (не подтверждён) ${shopOnly} — рабочая очередь прохода по каналам`);
+if (shopOnlyBrews.length)
+  console.log(`  пивоварен с shop-only сортами: ${shopOnlyBrews.length}, топ: ${
+    shopOnlyBrews.slice(0, 8).map((b) => `${b.slug} (${b.provenance.shopOnly})`).join(", ")}${shopOnlyBrews.length > 8 ? " …" : ""}`);
 
 const queue = brewState.filter((b) => b.nextAction !== "ok" && !b.blocked);
 console.log(`\n=== ОЧЕРЕДЬ ДЕЙСТВИЙ (${queue.length}) ===`);
