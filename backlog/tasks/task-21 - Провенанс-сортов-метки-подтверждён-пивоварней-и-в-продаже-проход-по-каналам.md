@@ -100,4 +100,15 @@ demand), `packages/web/src/lib/catalog.ts` (типы + хелпер), `routes/be
 **Осталось:** #5 — проход по каналам (оперативная работа через скиллы
 brewery-research/ingest/promote-sorts по shop-only пивоварням, VK = task-13); #6 (опц.)
 — фильтры в каталоге.
+
+**Малый батч #5 (2026-06-01) — диагностический вывод.** Прогнал Untappd-ingest по топ-4
+shop-only (4-brewers/odna-tonna/bakunin/panzer): заингещено 1599 сортов, но verified лишь
++6, shop-only НЕ сдвинулся. Эти пивоварни УЖЕ забэкфиллены с Untappd — их shop-only остаток
+genuine (коллабы/серии/стор-эксклюзивы, реально нет в офиц. каталоге) ⇒ метка уже корректна.
+`upsertBeer` клеит источник только по ТОЧНОМУ slug — варианты имён не совпадают, нужен
+fuzzy-дедуп (promote-sorts), а не повторный ingest. **Реальные цели прохода** — пивоварни
+с ПРОБЕЛОМ: `untappd-error` (salden-s: 155 shop-only, URL есть, ингест падал) и без
+untappd-ссылки (selfmade-brewery, konix-brewery, medovarnya — нужен brewery-research →
+ingest). Память: [[shop-only-pass-targets]]. Батч добавил +6 сортов и обновил untappd-
+coverage в ingest-hints (эти 4 ~полностью покрыты).
 <!-- SECTION:NOTES:END -->
