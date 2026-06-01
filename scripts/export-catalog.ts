@@ -11,6 +11,12 @@ const OUT = "packages/web/src/lib/data/catalog.json";
 // (но в reach/листинги они входят — наличие сорта это всё равно сигнал).
 const OPT_SELLERS = new Set(["kraftbeer.ru"]);
 
+// Тип продавца для блока «Где найти»: опт (цену не показываем), бар (TG-канал, разлив),
+// иначе магазин. Бары публикуют тап-листы в Telegram (seller = t.me/<канал>).
+type SellerKind = "shop" | "bar" | "opt";
+const sellerKind = (seller: string): SellerKind =>
+  OPT_SELLERS.has(seller) ? "opt" : seller.startsWith("t.me/") ? "bar" : "shop";
+
 // read-only: экспортёр только читает, не трогаем заголовок/журнал БД
 const db = new Database(DB_PATH, { readonly: true });
 
@@ -45,14 +51,37 @@ const beersAll = (db.query(
     .filter((e): e is string => !!e)
     .sort((a, b) => b.length - a.length)[0] ?? null;
   // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка +
-  // диапазон РОЗНИЧНЫХ цен. Опт-продавцов (за упаковку) из цены исключаем — мешать опт и
-  // розницу в одну «цену от» некорректно (детали в price_listings). reach = число магазинов.
+  // диапазон РОЗНИЧНЫХ цен. Из «цены» исключаем опт (за упаковку) и кег (30л — не
+  // потребительская розница), иначе «от/до» врут. reach = число продавцов (опт входит).
+  type PlRow = { seller: string | null; discounted: number; price: number | null; format: string | null; seen_at: string };
   const pl = db.query(
-    "SELECT seller, discounted, price FROM price_listings WHERE beer_id = ?",
-  ).all(r.id as string) as { seller: string | null; discounted: number; price: number | null }[];
-  const retailPrices = pl
-    .filter((x) => x.seller && !OPT_SELLERS.has(x.seller) && x.price != null && x.price > 0)
-    .map((x) => x.price as number);
+    "SELECT seller, discounted, price, format, seen_at FROM price_listings WHERE beer_id = ?",
+  ).all(r.id as string) as PlRow[];
+  const isRetailPrice = (x: PlRow) =>
+    x.seller != null && sellerKind(x.seller) !== "opt" && x.format !== "keg" && x.price != null && x.price > 0;
+  const retailPrices = pl.filter(isRetailPrice).map((x) => x.price as number);
+  // разбивка по продавцу для блока «Где найти» (task-20): цена «от», форматы, дата снапшота
+  const bySeller = new Map<string, PlRow[]>();
+  for (const x of pl) {
+    if (!x.seller) continue;
+    const arr = bySeller.get(x.seller);
+    if (arr) arr.push(x); else bySeller.set(x.seller, [x]);
+  }
+  const kindOrder: Record<SellerKind, number> = { shop: 0, bar: 1, opt: 2 };
+  const places = [...bySeller.entries()]
+    .map(([seller, rows]) => {
+      const kind = sellerKind(seller);
+      const prices = rows.filter(isRetailPrice).map((x) => x.price as number);
+      const formats = [...new Set(rows.map((x) => x.format).filter((f): f is string => !!f && f !== "unknown"))];
+      return {
+        seller, kind,
+        minPrice: prices.length ? Math.min(...prices) : null,
+        formats,
+        discounted: rows.some((x) => x.discounted === 1),
+        seenAt: rows.map((x) => x.seen_at).sort().at(-1) as string,
+      };
+    })
+    .sort((a, b) => (kindOrder[a.kind] - kindOrder[b.kind]) || ((a.minPrice ?? Infinity) - (b.minPrice ?? Infinity)));
   const demand = pl.length
     ? {
         listings: pl.length,
@@ -61,6 +90,7 @@ const beersAll = (db.query(
         discounted: pl.some((x) => x.discounted === 1),
         minPrice: retailPrices.length ? Math.min(...retailPrices) : null,
         maxPrice: retailPrices.length ? Math.max(...retailPrices) : null,
+        places,
       }
     : null;
   return {
@@ -90,15 +120,16 @@ if (droppedJunk) console.log(`отсеяно мусорных сортов (пу
 
 // число сортов на пивоварню + агрегат дистрибуции (для меты/топа)
 const beersByBrewery = new Map<string, number>();
-// агрегат спроса по пивоварне: охват магазинов (объединение), всего листингов, сортов в продаже
-const brewDemand = new Map<string, { shops: Set<string>; listings: number; listedBeers: number }>();
+// агрегат спроса по пивоварне: охват продавцов (объединение + сколько сортов у каждого),
+// всего листингов, сортов в продаже
+const brewDemand = new Map<string, { shops: Map<string, number>; listings: number; listedBeers: number }>();
 for (const b of beers) {
   if (!b.brewerySlug) continue;
   beersByBrewery.set(b.brewerySlug, (beersByBrewery.get(b.brewerySlug) ?? 0) + 1);
   if (!b.demand) continue;
   let agg = brewDemand.get(b.brewerySlug);
-  if (!agg) { agg = { shops: new Set(), listings: 0, listedBeers: 0 }; brewDemand.set(b.brewerySlug, agg); }
-  for (const s of b.demand.sellers) agg.shops.add(s);
+  if (!agg) { agg = { shops: new Map(), listings: 0, listedBeers: 0 }; brewDemand.set(b.brewerySlug, agg); }
+  for (const s of b.demand.sellers) agg.shops.set(s, (agg.shops.get(s) ?? 0) + 1);
   agg.listings += b.demand.listings;
   agg.listedBeers += 1;
 }
@@ -107,7 +138,16 @@ const breweriesOut = breweries.map((b) => {
   return {
     ...b,
     beerCount: beersByBrewery.get(b.slug) ?? 0,
-    demand: agg ? { reach: agg.shops.size, listings: agg.listings, listedBeers: agg.listedBeers } : null,
+    demand: agg
+      ? {
+          reach: agg.shops.size,
+          listings: agg.listings,
+          listedBeers: agg.listedBeers,
+          places: [...agg.shops.entries()]
+            .map(([seller, listedBeers]) => ({ seller, kind: sellerKind(seller), listedBeers }))
+            .sort((a, b) => (b.listedBeers - a.listedBeers) || a.seller.localeCompare(b.seller)),
+        }
+      : null,
   };
 });
 

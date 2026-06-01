@@ -3,13 +3,22 @@
 import snapshot from "./data/catalog.json";
 
 export interface Link { kind: string; url: string; title?: string }
-/** Спрос по сорту: охват магазинов (reach) + листинги + диапазон розничных цен. */
+/** Тип точки продажи: магазин / бар (TG-разлив) / опт (цену как розницу не показываем). */
+export type SellerKind = "shop" | "bar" | "opt";
+/** Точка продажи сорта для блока «Где найти»: продавец, цена «от», форматы, дата снапшота. */
+export interface Place {
+  seller: string; kind: SellerKind; minPrice: number | null;
+  formats: string[]; discounted: boolean; seenAt: string;
+}
+/** Спрос по сорту: охват магазинов (reach) + листинги + диапазон розничных цен + точки. */
 export interface BeerDemand {
   listings: number; sellers: string[]; reach: number; discounted: boolean;
-  minPrice: number | null; maxPrice: number | null;
+  minPrice: number | null; maxPrice: number | null; places: Place[];
 }
+/** Точка продажи в агрегате пивоварни: продавец + сколько её сортов там встречается. */
+export interface BreweryPlace { seller: string; kind: SellerKind; listedBeers: number }
 /** Спрос по пивоварне: объединённый охват магазинов, всего листингов, сортов в продаже. */
-export interface BreweryDemand { reach: number; listings: number; listedBeers: number }
+export interface BreweryDemand { reach: number; listings: number; listedBeers: number; places: BreweryPlace[] }
 export interface Brewery {
   slug: string; name: string; city: string | null; country: string;
   segment: string; aliases: string[]; links: Link[]; beerCount: number;
@@ -94,3 +103,24 @@ export function dealsBeers(limit = 40): Beer[] {
     .sort((a, b) => (b.demand!.reach - a.demand!.reach) || ((a.demand!.minPrice ?? 1e9) - (b.demand!.minPrice ?? 1e9)))
     .slice(0, limit);
 }
+
+// ── Презентация (блок «Где найти», переиспользуется карточками) ─────────────
+export const fmtPrice = (n: number | null): string => (n == null ? "—" : `${n.toLocaleString("ru")} ₽`);
+
+/** Плюрализация рус. существительных: plur(n, "магазин", "магазина", "магазинов"). */
+export function plur(n: number, one: string, few: string, many: string): string {
+  const m10 = n % 10, m100 = n % 100;
+  if (m10 === 1 && m100 !== 11) return one;
+  if (m10 >= 2 && m10 <= 4 && (m100 < 10 || m100 >= 20)) return few;
+  return many;
+}
+
+/** Человекочитаемое имя продавца: t.me/<канал> → @<канал>, домен — как есть. */
+export const sellerLabel = (seller: string): string =>
+  seller.startsWith("t.me/") ? "@" + seller.slice("t.me/".length) : seller.replace(/^www\./, "");
+
+export const SELLER_KIND_LABEL: Record<SellerKind, string> = { shop: "магазин", bar: "бар", opt: "опт" };
+
+/** Метка формата: bottle→бутылка, can→банка, keg→кег, draft→разлив. */
+export const formatLabel = (f: string): string =>
+  (({ bottle: "бутылка", can: "банка", keg: "кег", draft: "разлив" }) as Record<string, string>)[f] ?? f;

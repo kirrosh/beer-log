@@ -1,5 +1,6 @@
 <script lang="ts">
   import { catMeta, LINK_LABEL } from "$lib/styles";
+  import { plur, sellerLabel, SELLER_KIND_LABEL } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const brewery = $derived(data.brewery);
@@ -33,6 +34,22 @@
         </a>
       {/each}
     </div>
+  {/if}
+
+  {#if brewery.demand}
+    <section class="block where">
+      <h2>Где найти <span class="rc mono">· {brewery.demand.reach} {plur(brewery.demand.reach, "точка", "точки", "точек")}</span></h2>
+      <div class="places">
+        {#each brewery.demand.places as p}
+          <span class="place" class:opt={p.kind === "opt"}>
+            <span class="snm">{sellerLabel(p.seller)}</span>
+            <span class="kind k-{p.kind}">{SELLER_KIND_LABEL[p.kind]}</span>
+            <span class="cnt mono">{p.listedBeers} {plur(p.listedBeers, "сорт", "сорта", "сортов")}</span>
+          </span>
+        {/each}
+      </div>
+      <p class="note">{brewery.demand.listedBeers} {plur(brewery.demand.listedBeers, "сорт", "сорта", "сортов")} в продаже · {brewery.demand.listings} лист. — рыночная информация о доступности, best-effort.</p>
+    </section>
   {/if}
 
   {#if dist.length}
@@ -77,6 +94,18 @@
   .lnk:hover { color: var(--ink); border-color: var(--line-strong); }
   .lnk.primary { color: #1a1206; background: var(--amber); border-color: var(--amber); font-weight: 600; }
   .lnk.primary:hover { background: color-mix(in srgb, var(--amber) 88%, #fff); }
+
+  /* Где найти — агрегат доступности (task-20) */
+  .where { margin-top: 24px; }
+  .where h2 .rc { color: var(--ink-dim); text-transform: none; letter-spacing: 0; font-size: 13px; }
+  .places { display: flex; flex-wrap: wrap; gap: 8px; }
+  .place { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); border-left: 2px solid var(--amber-dim); border-radius: var(--r); padding: 7px 12px; background: var(--bg-elev); }
+  .place.opt { border-left-color: var(--line-strong); }
+  .place .snm { font-weight: 500; font-size: 14px; }
+  .place .kind { font-size: 10.5px; text-transform: uppercase; letter-spacing: 0.4px; color: var(--ink-faint); border: 1px solid var(--line); border-radius: 5px; padding: 1px 6px; }
+  .place .kind.k-bar { color: var(--c-specialty); border-color: color-mix(in srgb, var(--c-specialty) 40%, var(--line)); }
+  .place .cnt { font-size: 12px; color: var(--ink-dim); }
+  .where .note { margin: 11px 0 0; font-size: 12px; color: var(--ink-faint); }
 
   .dist { margin: 22px 0 4px; }
   .bar { display: flex; gap: 2px; height: 12px; border-radius: 4px; overflow: hidden; }

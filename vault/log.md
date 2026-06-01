@@ -385,3 +385,20 @@ availability-moat.md (граф доступности как первичный 
 legal-boundary.md (сведённая юр-рамка ст.21: рыночная инфо vs продвижение). Добавлены в
 index.md + входящие ссылки из gtm/risks/positioning/drift-to-value/mvp-research-mode/
 need-and-demand/competitors/analogs/data-model.
+
+## [2026-06-01] product | task-20 — блок «Где найти» на карточках (ров видим в UI)
+Diff: ров доступности перестал быть невидимым в данных — теперь первоклассный блок на
+карточках. export-catalog.ts: классификатор sellerKind (shop / bar=t.me/* / opt) +
+per-seller разбивка — beer.demand.places[] (kind, minPrice, formats[], discounted, seenAt)
+и brewery.demand.places[] (kind, listedBeers). Существующие агрегаты (reach/listings/
+minPrice — их читает /top) не тронуты. Розничная «цена от» теперь исключает не только опт
+(kraftbeer.ru), но и КЕГ (30л — не потребительская розница) → заодно чистка грязного
+maxPrice (известная проблема). lib/catalog.ts: типы SellerKind/Place/BreweryPlace +
+экспортируемые хелперы fmtPrice/plur/sellerLabel/SELLER_KIND_LABEL/formatLabel (обе
+карточки переиспользуют, /top не трогали). UI: /beer/[slug] — блок «Где найти» сразу
+после характеристик (продавец+бейдж тип+форматы+«от X₽»/«разлив»/«опт»+дата+note);
+/brewery/[slug] — компактный агрегат (reach + чипы продавцов с числом сортов) после
+офиц. ссылок. Подача — «рыночная информация о доступности», без «купи здесь» (рамка
+legal-boundary.md): продавцы — текст-метки, не buy-кнопки. Проверка: typecheck 0,
+svelte-check 0/0, web:build — пререндер 17k+ карточек зелёный, блок подтверждён в HTML
+(«от 520 ₽», «разлив», «опт», дата, best-effort note). Закрывает AC#1-4 task-20.
