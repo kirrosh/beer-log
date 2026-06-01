@@ -13,9 +13,10 @@
       <span class="wm">BEER&thinsp;LOG</span>
       <span class="tag">мета российского крафта</span>
     </a>
-    {#if !isHome}
-      <a class="back" href="/">← к каталогу</a>
-    {/if}
+    <nav class="nav">
+      <a class="navlink" class:on={isHome} href="/">Каталог</a>
+      <a class="navlink" class:on={page.url.pathname === "/top"} href="/top">Топ</a>
+    </nav>
   </div>
   <div class="hair"></div>
 </header>
@@ -39,8 +40,10 @@
   .wm { font-family: var(--font-display); font-weight: 700; font-size: 22px; letter-spacing: 1.5px; }
   .tag { font-size: 12.5px; color: var(--ink-faint); letter-spacing: 0.3px; }
   @media (max-width: 560px) { .tag { display: none; } }
-  .back { font-size: 13px; color: var(--ink-dim); padding: 5px 11px; border: 1px solid var(--line); border-radius: 999px; transition: border-color 0.15s, color 0.15s; }
-  .back:hover { color: var(--ink); border-color: var(--line-strong); }
+  .nav { display: flex; gap: 4px; }
+  .navlink { font-size: 13.5px; color: var(--ink-dim); padding: 6px 14px; border-radius: 999px; transition: color 0.15s, background 0.15s; }
+  .navlink:hover { color: var(--ink); }
+  .navlink.on { color: var(--amber); background: color-mix(in srgb, var(--amber) 12%, transparent); }
   .hair { height: 1px; background: linear-gradient(90deg, transparent, var(--line-strong) 18%, var(--line-strong) 82%, transparent); }
 
   main { min-height: calc(100vh - 58px - 64px); }

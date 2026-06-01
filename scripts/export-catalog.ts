@@ -7,6 +7,10 @@ import { Database } from "bun:sqlite";
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const OUT = "packages/web/src/lib/data/catalog.json";
 
+// Опт/дистрибьюторы: их цены — за упаковку, не розница; из ценового диапазона исключаем
+// (но в reach/листинги они входят — наличие сорта это всё равно сигнал).
+const OPT_SELLERS = new Set(["kraftbeer.ru"]);
+
 // read-only: экспортёр только читает, не трогаем заголовок/журнал БД
 const db = new Database(DB_PATH, { readonly: true });
 
@@ -29,7 +33,7 @@ const brewerySlugById = new Map(
 
 // описание + источники сорта берём из beer_sources (провенанс); описание — самый длинный excerpt
 type SrcRow = { excerpt: string | null; source_url: string };
-const beers = (db.query(
+const beersAll = (db.query(
   `SELECT id, name, slug, brewery_id, brewery_name_raw, style_slug, style_name, style_category,
           abv, ibu, status, aliases
    FROM beers ORDER BY name`,
@@ -40,17 +44,23 @@ const beers = (db.query(
     .map((s) => s.excerpt)
     .filter((e): e is string => !!e)
     .sort((a, b) => b.length - a.length)[0] ?? null;
-  // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка.
-  // Headline-цену не выносим: разные продавцы дают опт (за упаковку) vs розницу (за ед.) —
-  // смешивать в одну «цену от» некорректно; детали — в price_listings.
+  // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка +
+  // диапазон РОЗНИЧНЫХ цен. Опт-продавцов (за упаковку) из цены исключаем — мешать опт и
+  // розницу в одну «цену от» некорректно (детали в price_listings). reach = число магазинов.
   const pl = db.query(
-    "SELECT seller, discounted FROM price_listings WHERE beer_id = ?",
-  ).all(r.id as string) as { seller: string | null; discounted: number }[];
+    "SELECT seller, discounted, price FROM price_listings WHERE beer_id = ?",
+  ).all(r.id as string) as { seller: string | null; discounted: number; price: number | null }[];
+  const retailPrices = pl
+    .filter((x) => x.seller && !OPT_SELLERS.has(x.seller) && x.price != null && x.price > 0)
+    .map((x) => x.price as number);
   const demand = pl.length
     ? {
         listings: pl.length,
-        sellers: [...new Set(pl.map((x) => x.seller).filter(Boolean))],
+        sellers: [...new Set(pl.map((x) => x.seller).filter(Boolean))] as string[],
+        reach: new Set(pl.map((x) => x.seller).filter(Boolean)).size,
         discounted: pl.some((x) => x.discounted === 1),
+        minPrice: retailPrices.length ? Math.min(...retailPrices) : null,
+        maxPrice: retailPrices.length ? Math.max(...retailPrices) : null,
       }
     : null;
   return {
@@ -71,10 +81,35 @@ const beers = (db.query(
   };
 });
 
-// число сортов на пивоварню — для списка/меты
+// Отсев мусорных авто-сортов: пустой slug или имя ≤1 значащего символа (артефакты парсинга
+// заголовков магазинов, напр. name="),"). В витрину/топ не пускаем (ссылка /beer/<пусто> ещё
+// и ломает пререндер). Чистка канона в БД — отдельной курацией.
+const beers = beersAll.filter((b) => b.slug && b.slug.trim() && b.name.replace(/[^\p{L}\p{N}]/gu, "").length >= 2);
+const droppedJunk = beersAll.length - beers.length;
+if (droppedJunk) console.log(`отсеяно мусорных сортов (пустой slug/имя): ${droppedJunk}`);
+
+// число сортов на пивоварню + агрегат дистрибуции (для меты/топа)
 const beersByBrewery = new Map<string, number>();
-for (const b of beers) if (b.brewerySlug) beersByBrewery.set(b.brewerySlug, (beersByBrewery.get(b.brewerySlug) ?? 0) + 1);
-const breweriesOut = breweries.map((b) => ({ ...b, beerCount: beersByBrewery.get(b.slug) ?? 0 }));
+// агрегат спроса по пивоварне: охват магазинов (объединение), всего листингов, сортов в продаже
+const brewDemand = new Map<string, { shops: Set<string>; listings: number; listedBeers: number }>();
+for (const b of beers) {
+  if (!b.brewerySlug) continue;
+  beersByBrewery.set(b.brewerySlug, (beersByBrewery.get(b.brewerySlug) ?? 0) + 1);
+  if (!b.demand) continue;
+  let agg = brewDemand.get(b.brewerySlug);
+  if (!agg) { agg = { shops: new Set(), listings: 0, listedBeers: 0 }; brewDemand.set(b.brewerySlug, agg); }
+  for (const s of b.demand.sellers) agg.shops.add(s);
+  agg.listings += b.demand.listings;
+  agg.listedBeers += 1;
+}
+const breweriesOut = breweries.map((b) => {
+  const agg = brewDemand.get(b.slug);
+  return {
+    ...b,
+    beerCount: beersByBrewery.get(b.slug) ?? 0,
+    demand: agg ? { reach: agg.shops.size, listings: agg.listings, listedBeers: agg.listedBeers } : null,
+  };
+});
 
 const snapshot = {
   generatedAt: new Date().toISOString().slice(0, 10),
