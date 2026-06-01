@@ -25,6 +25,7 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
+| 22 | Архитектура «ресёрчеров» по сущностям (единый контракт + единый shop-ingest) | To Do · high · foundational |
 | 13 | VK-парсер офиц. каналов (TG-сторона уже Done) | In Progress · VK остаток |
 | 17 | fetch-channels: глубокий back-scan never-ingested | To Do |
 | 2 | Telegram-парсер «боевой» (raw-снапшоты/healthCheck) | To Do · low |
