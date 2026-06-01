@@ -111,11 +111,12 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 |---|---|
 | Skill | `shop-discovery` (найти + классифицировать платформу/парсибельность) |
 | Реестр | `data/pipeline/shops.json` (id/platform/status/lastScan/ingest/note — уже единый и хорош) |
-| Парсеры | `parseInsalesProducts` и пр. в `@beer-log/parsers` |
-| Скрипты | `ingest-shop`, `ingest-shop-full`, **+ bespoke на магазин**: `ingest-storebeer`, `ingest-pivokom`, `ingest-kraftbeer`, `ingest-rusbeershop`, `ingest-vashchehov` |
+| Парсеры | `@beer-log/parsers`: чистые по платформе — `parseWoocommerce`/`parseBitrixCatalog`/`parseStorebeerPage`/`parseTelegramTapList` (shops/platforms.ts) + `parseInsalesProducts` |
+| Скрипты | **единый движок** `ingest-shop-platform.ts <id>` (платформа из `shops.json.ingestConfig`) → `scripts/lib/shop-ingest.ts`; by-collection beerkontora — отдельно `ingest-shop.ts` |
+| Данные | реестр `data/pipeline/shops.json` (+ `ingestConfig`: platform/seller/idPrefix/endpoint/catalogs/…) |
 | Владеет action | `demand` (скан магазинов города) |
 | Стадия из | `shops.json` (status/lastScan) + наличие листингов в `price_listings` |
-| **Пробел (ГЛАВНЫЙ)** | нет единого ingest-интерфейса по платформе → bespoke-скрипт на магазин (7 шт). + цикл `recurring/freshness` + самовосстановление парсера ([[parser-architecture]], TASK-5) |
+| **Пробел (закрывается)** | единый ingest по платформе — **TASK-23** (движок готов, bespoke-скрипты к удалению после полного регресса). Остаётся `recurring/freshness` (TASK-25) + самовосстановление парсера ([[parser-architecture]], TASK-5) |
 
 ### 4. City/geo
 

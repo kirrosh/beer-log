@@ -1,3 +1,5 @@
+// DEPRECATED (task-23): заменён единым движком `scripts/ingest-shop-platform.ts kraftbeer-beertrade`
+// (конфиг в shops.json.ingestConfig). Оставлен до полного регресс-прогона, затем удалить.
 // Ингест demand-сигнала с kraftbeer.ru (WooCommerce Store API → готовый JSON, без скрейпинга HTML).
 // Тянет все товары постранично, матчит к канону обобщённым матчером (lib/catalog-matcher):
 // росс. крафт → листинг с beer_id (+ auto-сорт, если уверенно), импорт/неузнанное → beer_id=null.

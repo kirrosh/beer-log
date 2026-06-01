@@ -1,3 +1,5 @@
+// DEPRECATED (task-23): заменён единым движком `scripts/ingest-shop-platform.ts rusbeershop`
+// (конфиг в shops.json.ingestConfig). Оставлен до полного регресс-прогона, затем удалить.
 // Ингест demand-сигнала с rusbeershop.ru («РусБир Варшавка», Bitrix, server-rendered каталог).
 // Категории: «Русский крафт» (~217 стр × 40 товаров), «Российское» (~4 стр), «Разливное» (1 стр).
 // Карточка: class="item-title"><a href=URL class="dark_link"><span>TITLE</span>, цена — data-value=... внутри class="price".

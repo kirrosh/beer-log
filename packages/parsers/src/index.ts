@@ -10,3 +10,8 @@ export { untappdWebParser, parseUntappdBeerList, parseUntappdBeerTotal, parseUnt
 export type { UntappdBeer } from "./untappd/untappd-web.ts";
 export { parseInsalesProducts, shopTitleToBeerName } from "./shops/insales.ts";
 export type { InsalesProduct, ShopFormat } from "./shops/insales.ts";
+export {
+  decodeEntities, parseVolumeMl, NONBEER, looksLikeBeerLine,
+  parseWoocommerce, parseBitrixCatalog, parseStorebeerPage, parseTelegramTapList,
+} from "./shops/platforms.ts";
+export type { ShopItem, BitrixOpts, StorebeerResponse } from "./shops/platforms.ts";

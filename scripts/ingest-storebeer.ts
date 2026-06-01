@@ -1,3 +1,5 @@
+// DEPRECATED (task-23): заменён единым движком `scripts/ingest-shop-platform.ts storebeer`
+// (конфиг в shops.json.ingestConfig). Оставлен до полного регресс-прогона, затем удалить.
 // Ингест demand-сигнала с storebeer.ru (StoreBeer, СПб, кастомный движок).
 // JSON API: /catalog/json_get_items?page=N → {total_items, items_per_page, current_page, data:[]}
 // Поле name: «СОРТ (ПИВОВАРНЯ) 0,45л. X% [ТИП]» — пивоварня в скобках после названия сорта.

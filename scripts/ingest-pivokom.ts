@@ -1,3 +1,5 @@
+// DEPRECATED (task-23): заменён единым движком `scripts/ingest-shop-platform.ts pivokom`
+// (конфиг в shops.json.ingestConfig). Оставлен до полного регресс-прогона, затем удалить.
 // Ингест demand-сигнала с pivokom.ru («Народные напитки», Bitrix, server-rendered каталог).
 // Раздел «Крафтовое пиво в бутылках и банках», пагинация ?PAGEN_1=N (≈74 стр × ~24 товара).
 // Карточка: class="item-title"><a href=URL><span>TITLE</span>, цена class="price" data-value=...

@@ -32,7 +32,8 @@
 | Трекинг/дашборд | `scripts/pipeline-status.ts` |
 | TG-инкремент | `scripts/fetch-channels.ts` → `scripts/ingest-sorts.ts` (см. `data/ingest/RUNBOOK.md`) |
 | Untappd сорта | `scripts/ingest-untappd.ts` (MAP slug→URL) |
-| Магазин (точечно/полный) | `scripts/ingest-shop.ts` / `scripts/ingest-shop-full.ts` |
+| Магазин (плоский каталог) | `scripts/ingest-shop-platform.ts <id>` — единый движок по платформе (woocommerce/bitrix/custom-json/telegram), конфиг в `shops.json.ingestConfig` (task-23) |
+| Магазин (by-collection) | `scripts/ingest-shop.ts` — beerkontora (InSales, коллекция=пивоварня) |
 | Промоушн auto→validated | `scripts/promote-sorts.ts` (применяет решения скилла) |
 | Экспорт витрины | `scripts/export-catalog.ts` |
 
