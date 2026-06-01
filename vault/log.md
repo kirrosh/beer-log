@@ -306,3 +306,19 @@ scripts/resolve-review.ts (validate/merge/drop + пересборка needsRevie
 по slug); решения по раундам — data/pipeline/review-rounds/*.json. Дашборд: validated-пивоварен
 140→164, auto-сортов 159→40, needsReview 0. Остаток supply: promote-sorts 2 (panzer/
 vasileostrovskaya, обычные auto, не гейт), demand 133 (нужны магазины/города = скоуп).
+
+## [2026-06-01] demand | Новый магазин storebeer.ru: +1947 листингов (СПб)
+Diff: разобраны два уже-discovered магазина под demand-парсинг (rusbeershop + storebeer),
+субагентами на sonnet (по скиллу shop-discovery). storebeer.ru (СПб, custom-движок) залит
+ЖИВЬЁМ: нашёлся встроенный JSON API `/catalog/json_get_items?page=N` (надёжнее HTML-скрейпа),
+формат name=«СОРТ (ПИВОВАРНЯ) объём% [тип]». 98 стр × ~20 = 1947 товаров → 1947 листингов,
+602 сорт-матч (30.9%) + 211 только-пивоварня; auto-сортов добавилось скромно (isSameBeer
+схлопнул объём/формат-варианты — total auto 40→203). Не узнано 1134 = импорт (3 Fonteinen/
+Kees/Fuller) + РФ-пивоварни вне канона. Скрипт scripts/ingest-storebeer.ts (каркас от pivokom:
+buildMatcher + recordListing, скидки detect через discount_price/markdown_price). Дашборд:
+магазинов с листингами +1 (storebeer 1947/760 связано), promote-sorts queue 2→25 (новые auto
+у 4-brewers/afbrew/alaska/brewlok/brewmen… — штатная курация). rusbeershop ПРИДЕРЖАН по решению
+Кирилла: DRY дал 8782 товара (russkiy_kraft 8660 + rossiyskoe 122), 1161 сорт-матч + 3578
+только-пивоварня → в live createAuto раздул бы канон тысячами auto-сортов; скрипт готов
+(scripts/ingest-rusbeershop.ts), но live не запускали. Магазины wbtraditions(SPA)/beershopkzn/
+craftbeer78/leolsbeer — по-прежнему discovered/blocked.
