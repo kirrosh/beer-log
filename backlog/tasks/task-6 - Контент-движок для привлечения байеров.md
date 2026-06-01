@@ -3,19 +3,32 @@ id: task-6
 title: Контент-движок для привлечения байеров (промо Фазы 0)
 status: To Do
 assignee: []
-labels: [growth, phase-0]
-dependencies: [task-4]
-created_date: 2026-05-29
+created_date: '2026-05-29'
+updated_date: '2026-06-01 12:54'
+labels:
+  - growth
+  - phase-0
+  - deferred
+dependencies:
+  - task-4
 ---
 
 ## Description
 
+<!-- SECTION:DESCRIPTION:BEGIN -->
 Чтобы на каталог заходили байеры: свой TG-канал + автогенерация контента из
 каталога (дайджесты новинок, «что варят в городе X», тренды стилей). См.
 vault/growth/promotion-phase0.md.
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
 - [ ] Запущен TG-канал проекта
 - [ ] Авто-дайджест новинок из каталога (раз в неделю)
 - [ ] >= 50 уникальных байеров в каталоге за первый месяц
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Заморожено до task-19 (решение об аудитории). Это B2B-маркетплейс (онбординг пивоварен / контент для байеров / платная аналитика спроса) — валидная ДАЛЬНЯЯ цель (фазы 1-2), но вне фокуса M2 «дрейф к реальной пользе». Размораживать, если первичной аудиторией выбраны пивоварни/байеры.
+<!-- SECTION:NOTES:END -->

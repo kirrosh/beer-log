@@ -1,21 +1,27 @@
 ---
 id: task-1
-title: Найти прайсовые TG-каналы боттлшопов и пивоварен
+title: Найти TG-каналы баров/магазинов для слоя доступности
 status: To Do
 assignee: []
-labels: [demand, phase-0, parser]
+created_date: '2026-05-29'
+updated_date: '2026-06-01 12:54'
+labels:
+  - demand
+  - phase-0
+  - parser
 dependencies: []
-created_date: 2026-05-29
 ---
 
 ## Description
 
-Стартовый seed (`packages/parsers/src/sources.ts`) — это медиа/индустриальные
-каналы, а не прайс-листы. Для Фазы 0 нужны каналы, где регулярно постят наличие,
-новинки и цены: боттлшопы, оптовики (HoReCa), сами пивоварни.
+<!-- SECTION:DESCRIPTION:BEGIN -->
+ПЕРЕОСМЫСЛЕНО под M2 (vault/strategy/drift-to-value.md). Изначально: «прайсовые каналы». Теперь: TG-каналы баров и магазинов как источник СЛОЯ ДОСТУПНОСТИ (где сорт есть в наличии/на кранах) — это ров продукта. Разливные бары без веб-каталога публикуют тап-листы в TG (паттерн scripts/ingest-vashchehov.ts, memory draft-bar-tg-taplist). Цель — найти каналы с открытым t.me/s и текстовыми тап-листами/ассортиментом, не фото-меню.
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
-- [ ] Найдено >= 15 публичных каналов с прайсами/новинками
-- [ ] Каждый проверен парсером (beers+listings > 0)
-- [ ] Список занесён в `vault/research/telegram-sources.md` и в `sources.ts`
+<!-- AC:BEGIN -->
+- [ ] #1 Найдено >= 15 публичных каналов с прайсами/новинками
+- [ ] #2 Каждый проверен парсером (beers+listings > 0)
+- [ ] #3 Список занесён в `vault/research/telegram-sources.md` и в `sources.ts`
+- [ ] #4 Занесены в data/pipeline/shops.json (platform=telegram) и/или vault/research/telegram-sources.md
+<!-- AC:END -->

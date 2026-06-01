@@ -4,7 +4,7 @@ title: 'Парсеры офиц. каналов пивоварен (VK + TG), н
 status: In Progress
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-05-29 20:30'
+updated_date: '2026-06-01 12:55'
 labels:
   - parser
   - phase-0
@@ -17,10 +17,12 @@ priority: high
 
 ## Description
 
+<!-- SECTION:DESCRIPTION:BEGIN -->
 Слой 2 (authoritative, см. vault/product/sourcing-strategy.md). Официальный канал
 большинства пивоварен — VK/Telegram, а не уникальный сайт. Добавить VK-парсер
 (стена/посты) и наводить TG+VK парсеры на хэндлы, полученные из discovery
 (task-12). Это дешевле, чем сотни отдельных парсеров сайтов.
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
 
@@ -42,3 +44,9 @@ priority: high
   (медиа-посты / иная разметка) — нужен иной способ (caption-парсинг / VK). См. task-5.
 - Осталось: VK-парсер; расширить агентный ингест до ≥50 пивоварен (зависит от
   полноты discovery, task-12).
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+TG-сторона готова: fetch-channels.ts наводится на хэндлы из discovery, ingest сортов в каталог, провенанс на записях (десятки пивоварен заингещены). НЕ сделан VK-парсер — но VK помечен «крайний» источник (Backlog.md), большинство активных каналов в TG. Остаток = VK-парсер, low. Можно дробить: TG-часть фактически Done.
+<!-- SECTION:NOTES:END -->

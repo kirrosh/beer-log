@@ -1,10 +1,10 @@
 ---
 id: task-12
 title: Discovery — полный реестр пивоварен РФ + офиц. ссылки
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-05-29 20:00'
+updated_date: '2026-06-01 12:53'
 labels:
   - discovery
   - phase-0
@@ -16,6 +16,7 @@ priority: high
 
 ## Description
 
+<!-- SECTION:DESCRIPTION:BEGIN -->
 Слой 1 (см. vault/product/sourcing-strategy.md). Приоритет Фазы 0 — полнота
 справочника. Собрать максимально полный список пивоварен РФ + их официальные
 ссылки (сайт/VK/TG), не полагаясь ни на один источник. Источники: полный обход
@@ -23,13 +24,14 @@ russiancraftbeer (пагинация /list, /gorod/*, страницы /brewery 
 сортами), брендовые списки магазинов (craftopt, craftbeer78, beerkontora),
 profibeer. Реестр — только для обнаружения (кто есть + где офиц. канал), не как
 источник правды (данные устаревшие, 2017).
+<!-- SECTION:DESCRIPTION:END -->
 
 ## Acceptance Criteria
-
-- [ ] Полный обход russiancraftbeer (пагинация /list + города + /brewery)
-- [ ] Импорт брендовых списков из 2-3 магазинов
-- [ ] >= 200 пивоварен с городом и хотя бы одной офиц. ссылкой
-- [x] Дедуп с существующими записями (slug/алиасы)
+<!-- AC:BEGIN -->
+- [x] #1 Полный обход russiancraftbeer (пагинация /list + города + /brewery)
+- [x] #2 Импорт брендовых списков из 2-3 магазинов
+- [x] #3 >= 200 пивоварен с городом и хотя бы одной офиц. ссылкой
+- [x] #4 Дедуп с существующими записями (slug/алиасы)
 
 ## Подход (уточнён 2026-05-29 по факту разведки)
 
@@ -53,3 +55,10 @@ profibeer. Реестр — только для обнаружения (кто �
   `breweries.links`. Скрипты `seed-top-breweries.ts`, `merge-rewort.ts`.
 - Дальше: агентные батчи по регионам → расширять активную базу к цели (сотни),
   дедуп с существующими (slug/алиасы).
+<!-- AC:END -->
+
+## Final Summary
+
+<!-- SECTION:FINAL_SUMMARY:BEGIN -->
+Закрыто по факту: 238 пивоварен (AC ≥200 выполнен), russiancraftbeer обойдён, списки магазинов импортированы, дедуп по slug/алиасам работает. Discovery как слой — наполнен; дальнейший добор идёт через breadth-backfill/brewery-research, отдельной задачи не требует.
+<!-- SECTION:FINAL_SUMMARY:END -->
