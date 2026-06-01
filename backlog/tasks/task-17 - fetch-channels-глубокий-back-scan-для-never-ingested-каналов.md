@@ -4,9 +4,10 @@ title: 'fetch-channels: глубокий back-scan для never-ingested кан�
 status: To Do
 assignee: []
 created_date: '2026-05-31 14:41'
+updated_date: '2026-06-01 12:57'
 labels:
   - ingest
-milestone: 'M1: Ширина каталога + витрина'
+milestone: 'M3: Глубина и надёжность каталога'
 dependencies:
   - TASK-13
 references:

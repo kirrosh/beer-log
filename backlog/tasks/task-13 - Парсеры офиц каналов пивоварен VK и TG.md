@@ -4,12 +4,12 @@ title: 'Парсеры офиц. каналов пивоварен (VK + TG), н
 status: In Progress
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:55'
+updated_date: '2026-06-01 12:57'
 labels:
   - parser
   - phase-0
   - next
-milestone: 'M1: Ширина каталога + витрина'
+milestone: 'M3: Глубина и надёжность каталога'
 dependencies:
   - task-12
 priority: high

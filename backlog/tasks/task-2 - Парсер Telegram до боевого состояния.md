@@ -4,11 +4,11 @@ title: Довести Telegram-парсер до боевого состояни
 status: To Do
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:54'
+updated_date: '2026-06-01 12:57'
 labels:
   - parser
   - phase-0
-milestone: 'M1: Ширина каталога + витрина'
+milestone: 'M3: Глубина и надёжность каталога'
 dependencies:
   - task-1
 priority: low

@@ -4,12 +4,12 @@ title: Офиц. изображения пивоварен и сортов (ло
 status: To Do
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:54'
+updated_date: '2026-06-01 12:57'
 labels:
   - catalog
   - web
   - deferred
-milestone: 'M1: Ширина каталога + витрина'
+milestone: 'M2: Дрейф к реальной пользе'
 dependencies:
   - task-12
 priority: low

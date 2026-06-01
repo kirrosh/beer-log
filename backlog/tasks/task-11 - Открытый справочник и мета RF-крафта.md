@@ -4,13 +4,13 @@ title: Открытый справочник + мета RF-крафта (Dotabuf
 status: In Progress
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-05-29 21:00'
+updated_date: '2026-06-01 12:57'
 labels:
   - web
   - phase-0
   - catalog
   - growth
-milestone: 'M1: Ширина каталога + витрина'
+milestone: 'M2: Дрейф к реальной пользе'
 dependencies:
   - task-3
   - task-4
