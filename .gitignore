@@ -17,3 +17,6 @@ data/.secrets/
 # sqlite WAL/shm (временные, сворачиваются чекпоинтом)
 *.sqlite-wal
 *.sqlite-shm
+
+# локальные снапшоты БД (scripts/backup-db.ts)
+backups/
