@@ -1,9 +1,10 @@
 ---
 id: TASK-25
 title: 'Shop-ресёрчер: recurring/freshness — перескан магазинов по расписанию'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-01 17:40'
+updated_date: '2026-06-02'
 labels:
   - pipeline
   - demand
@@ -28,9 +29,9 @@ priority: medium
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Стадия `recurring` выводится в `pipeline-status` (магазин с `lastScan` старше порога → в очередь на перескан)
-- [ ] #2 Перескан идёт через единый shop-ingest (TASK-23), пишет новый снапшот листингов (не затирая историю цен)
-- [ ] #3 Свежесть отражена на витрине (дата снапшота уже есть в «Где найти») + сигнал «устарело» при превышении порога
+- [x] #1 Стадия `recurring` в `pipeline-status` (магазин с `ingestConfig` и `lastScan` старше 7д или null → group `rescan-shop` в `--plan` + секция «ПЕРЕСКАН НУЖЕН» в дашборде)
+- [x] #2 Перескан через единый shop-ingest (TASK-23) `ingest-shop-platform.ts <id>`; история цен не затирается — `recordListing`/`price_snapshots` копит снапшоты (repo.ts), `discounted` считается от прошлого; `lastScan` пишется автоматически после реального скана (`r.listings>0`, не DRY)
+- [x] #3 Свежесть на витрине: `export-catalog.ts` добавляет флаг `stale` (>14д) на каждый `places[]` в «Где найти» (дата `seenAt` уже была)
 
 ## Implementation Notes
 

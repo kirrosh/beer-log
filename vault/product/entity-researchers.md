@@ -27,7 +27,7 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 | `ingest` / `parse` | вытащить факты из источника в БД | парсер (`@beer-log/parsers`) + ingest-скрипт |
 | `match` / `dedup` | связать с каноном, слить дубли | `catalog-matcher`, `rematch-listings` |
 | `validate` / `curate` | курир. чистка, отсев мусора, промоушн | curate-скилл (суждение) + детерм. применитель |
-| `refresh` / `liveness` | переобойти — источники/цены устаревают | **пробел у большинства (см. ниже)** |
+| `refresh` / `liveness` | переобойти — источники/цены устаревают | brewery **TASK-24 ✅** / shop **TASK-25 ✅** (по давности `lastRun`/`lastScan` → план); city — пробел |
 | `report-stage` | вывести стадию инстанса для очереди | входы в `pipeline-status.ts` (БД + hints + links) |
 
 Не каждая сущность реализует все глаголы, и реализация у каждой своя — но **набор глаголов
@@ -87,7 +87,7 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 | Данные | `data/research/<slug>.json`, `data/ingest-hints.json`, `breweries.links`, `overrides.breweries` (blocked) |
 | Владеет action | `brewery-research` |
 | Стадия из | `breweries` + `links` + `ingest-hints` (sources), счётчики `beers` |
-| **Пробел** | `refresh/liveness` — источники устаревают, переобхода нет |
+| `refresh/liveness` (**TASK-24 ✅**) | content-refresh по давности (TG `lastRun`>3д → `refresh-tg` инкремент; Untappd `untappd.lastRun`>14д → `refresh-untappd` page-1) + liveness-проба `check-liveness.ts` (HTTP/redirect/empty) → протухший источник всплывает в плане как `brewery-research`. Пороги — `FRESH` в `pipeline-status.ts` |
 
 ### 2. Sort/Beer-ресёрчер
 
@@ -116,7 +116,7 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 | Данные | реестр `data/pipeline/shops.json` (+ `ingestConfig`: platform/seller/idPrefix/endpoint/catalogs/…) |
 | Владеет action | `demand` (скан магазинов города) |
 | Стадия из | `shops.json` (status/lastScan) + наличие листингов в `price_listings` |
-| **Пробел (закрыт)** | единый ingest по платформе — **TASK-23 Done** (движок + 5 магазинов на конфиге, bespoke-скрипты удалены, регресс сверён). Остаётся `recurring/freshness` (TASK-25) + самовосстановление парсера ([[parser-architecture]], TASK-5) |
+| **Пробел (закрыт)** | единый ingest по платформе — **TASK-23 Done**. `recurring/freshness` — **TASK-25 ✅** (`lastScan`>7д или null → `rescan-shop` единым движком; `lastScan` пишется автоматически после реального скана; история цен — `price_snapshots`; витрина — флаг `stale`>14д на «Где найти»). Остаётся самовосстановление парсера ([[parser-architecture]], TASK-5) |
 
 ### 4. City/geo
 
@@ -130,8 +130,8 @@ shop-ресёрчера), [[sourcing-strategy]] (слои источников).
 | Пробел | Сущность | Приоритет | Под-задача |
 |---|---|---|---|
 | Единый shop-ingest по платформе (bitrix/woocommerce/insales/custom-json/telegram) — магазин = конфиг в `shops.json`, не bespoke-скрипт | shop | **high** (макс. практ. выигрыш, proof контракта) | **TASK-23** (= TASK-22 #5) |
-| `refresh/liveness` пивоварни — переобход устаревших источников | brewery | medium | **TASK-24** |
-| `recurring/freshness` магазинов — перескан по расписанию, история цен | shop | medium | **TASK-25** |
+| `refresh/liveness` пивоварни — переобход устаревших источников | brewery | medium | **TASK-24 ✅** |
+| `recurring/freshness` магазинов — перескан по расписанию, история цен | shop | medium | **TASK-25 ✅** |
 | VK-источник как глагол sort/brewery-ресёрчера | sort/brewery | — | TASK-13 (есть) |
 | Самовосстановление парсеров (healthCheck → фиксер) | shop | deferred | TASK-5 (есть) |
 | Провенанс-метки сорта + проход по shop-only каналам | sort | — | TASK-21 (#1-4 done, #5 проход) |

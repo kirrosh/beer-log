@@ -68,6 +68,19 @@ description: Оркестратор конвейера наполнения ка
 | `brewery-research` | по 1 пивоварне на субагента (web-ресёрч), читает `.claude/skills/brewery-research/SKILL.md`, пишет в `links`/`ingest-hints`/`overrides`. Параллельно ≤5. |
 | `ingest-sorts` | по источнику пивоварни: **Untappd** → просто `bun run scripts/ingest-untappd.ts <slug...>` — URL берётся из `breweries.links` автоматически, `MAP` редактировать **не нужно**; **TG** → `fetch-channels.ts`+`ingest-sorts.ts` (RUNBOOK). План уже исключает не-ingestable источники (website/vk-only, venue/битый untappd-URL → они в `brewery-research`). Если ingest всё же вернул 0/ошибку (untappd-link оказался неверным) → это уже не «нет источника», а **плохая ссылка**: не блокируй вслепую, оставь slug на `brewery-research` (план переклассифицирует сам после фикса ссылки). |
 | `demand` | по городу пивоварни: `.claude/skills/shop-discovery/SKILL.md` → реестр магазинов → скан (`ingest-shop*`). Новый город в скоуп — спроси человека. |
+| `refresh-tg` | поддержка свежести (task-24): `bun run scripts/fetch-channels.ts <slug...>` (инкремент по `newestId`, дёшево) → экстракт агентами → `ingest-sorts.ts`. Только новые посты. |
+| `refresh-untappd` | поддержка свежести (task-24): `UNTAPPD_NO_PAGINATE=1 bun run scripts/ingest-untappd.ts <slug...>` — только page-1 (≈25 новейших), БЕЗ полной пагинации. Если шапка показала рост тотала — разово допагинировать без флага. |
+| `rescan-shop` | recurring (task-25): `bun run scripts/ingest-shop-platform.ts <id>` по 1 магазину (некоторые 2000+ позиций). История цен копится сама; `lastScan` двигается автоматически. |
+
+## Поддержка свежести (task-24/25)
+
+`refresh-*`/`rescan-shop` — низший приоритет плана: появляются, только когда первичная заливка
+исчерпана, и наполняются по давности (`lastRun`/`lastScan` старше порога: TG 3д / Untappd 14д /
+магазин 7д). Анти-оверкилл встроен: TG инкрементален, Untappd — page-1, сортировка по давности
++ cap-N на батч. **Liveness-проба** (`bun run scripts/check-liveness.ts`) — отдельный
+*периодический* шаг (не каждый виток): проверяет живость источников, протухшие пивоварни
+сами всплывут в плане как `brewery-research (источник протух)`. Запускай её редко (раз в ~30д)
+или когда нужно отсеять мёртвые каналы.
 
 ## После прогона — отчёт
 Коротко: что сделано (по группам), как изменился дашборд (стадии/сорта), что ушло в

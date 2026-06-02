@@ -12,6 +12,17 @@ const OUT = "packages/web/src/lib/data/catalog.json";
 // (но в reach/листинги они входят — наличие сорта это всё равно сигнал).
 const OPT_SELLERS = new Set(["kraftbeer.ru"]);
 
+// Свежесть наличия (task-25 #3): снапшот старше порога → флаг `stale` на витрине («данные
+// могли устареть»). Порог витрины мягче порога перескана (7д): к 14д устаревание явно видно.
+const TODAY = new Date().toISOString().slice(0, 10);
+const STALE_AFTER_DAYS = 14;
+const daysSince = (d?: string | null): number | null => {
+  if (!d) return null;
+  const ms = Date.parse(TODAY) - Date.parse(d);
+  return Number.isNaN(ms) ? null : Math.floor(ms / 86_400_000);
+};
+const isStale = (seenAt?: string | null): boolean => (daysSince(seenAt) ?? 0) > STALE_AFTER_DAYS;
+
 // Тип продавца для блока «Где найти»: опт (цену не показываем), бар (TG-канал, разлив),
 // иначе магазин. Бары публикуют тап-листы в Telegram (seller = t.me/<канал>).
 type SellerKind = "shop" | "bar" | "opt";
@@ -86,6 +97,7 @@ const beersAll = (db.query(
         formats,
         discounted: rows.some((x) => x.discounted === 1),
         seenAt: rows.map((x) => x.seen_at).sort().at(-1) as string,
+        stale: isStale(rows.map((x) => x.seen_at).sort().at(-1)),
       };
     })
     .sort((a, b) => (kindOrder[a.kind] - kindOrder[b.kind]) || ((a.minPrice ?? Infinity) - (b.minPrice ?? Infinity)));

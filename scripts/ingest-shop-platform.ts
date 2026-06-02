@@ -16,7 +16,7 @@ const DRY = !!process.env.DRY;
 const PAGES = process.env.PAGES ? parseInt(process.env.PAGES, 10) : undefined;
 const today = new Date().toISOString().slice(0, 10);
 
-type Shop = { id: string; name: string; ingestConfig?: ShopIngestConfig };
+type Shop = { id: string; name: string; status?: string; lastScan?: string | null; ingestConfig?: ShopIngestConfig };
 const registry = JSON.parse(await Bun.file(SHOPS_PATH).text()) as { shops: Shop[] };
 
 const args = process.argv.slice(2);
@@ -34,11 +34,16 @@ if (targets.length === 0) {
 }
 
 const db = openDb(DB_PATH);
+let registryDirty = false;
 for (const shop of targets) {
   if (!shop.ingestConfig) { console.log(`! ${shop.id}: нет ingestConfig — пропуск`); continue; }
   console.log(`\n=== ${shop.name} (${shop.id}) · платформа ${shop.ingestConfig.platform} ===`);
   const cfg: ShopIngestConfig = PAGES ? { ...shop.ingestConfig, maxPages: PAGES } : shop.ingestConfig;
-  await runShopIngest(db, cfg, { dry: DRY, today });
+  const r = await runShopIngest(db, cfg, { dry: DRY, today });
+  // recurring/freshness (task-25): успешный реальный скан двигает дату — control-plane
+  // (pipeline-status) считает давность по lastScan. DRY/смоук и пустой скан дату НЕ трогают.
+  if (!DRY && r.listings > 0) { shop.lastScan = today; shop.status = "scanned"; registryDirty = true; }
 }
+if (registryDirty) await Bun.write(SHOPS_PATH, JSON.stringify(registry, null, 2) + "\n");
 db.exec("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;");
 db.close();

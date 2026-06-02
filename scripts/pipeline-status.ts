@@ -17,6 +17,23 @@ const hints = (await Bun.file("data/ingest-hints.json").exists())
   ? (JSON.parse(await Bun.file("data/ingest-hints.json").text()).breweries ?? {}) : {};
 const overrides = (await Bun.file("data/pipeline/overrides.json").exists())
   ? JSON.parse(await Bun.file("data/pipeline/overrides.json").text()) : { breweries: {}, shops: {}, cities: {} };
+const shopRegistry: any[] = (await Bun.file("data/pipeline/shops.json").exists())
+  ? (JSON.parse(await Bun.file("data/pipeline/shops.json").text()).shops ?? []) : [];
+
+// Конвенция давности источников (task-24/25; манифест — vault/product/entity-researchers.md).
+// refresh/recurring — дешёвые поддерживающие действия: ставятся в очередь по давности, идут
+// ПОСЛЕ первичной заливки. Анти-оверкилл: TG инкрементален, Untappd — только page-1.
+const today = new Date().toISOString().slice(0, 10);
+const FRESH = { tgDays: 3, untappdDays: 14, shopDays: 7 };
+const daysSince = (d?: string | null): number | null => {
+  if (!d) return null;
+  const ms = Date.parse(today) - Date.parse(d);
+  return Number.isNaN(ms) ? null : Math.floor(ms / 86_400_000);
+};
+const stale = (d: string | null | undefined, n: number): boolean => {
+  const x = daysSince(d);
+  return x != null && x > n;
+};
 
 type B = { id: string; name: string; slug: string; city: string | null; links: string; aliases: string };
 const breweries = db.query("SELECT id, name, slug, city, links, aliases FROM breweries ORDER BY name").all() as B[];
@@ -66,15 +83,29 @@ const brewState = breweries.map((b) => {
     : sources.size > 0 ? "sourced"
     : "discovered";
 
+  // liveness (task-24 #2): если ВСЕ ingestable-источники протухли (проба check-liveness.ts),
+  // пивоварня — на повторный brewery-research, даже если уже validated (источник умер во времени).
+  const lv = h.liveness?.sources as Record<string, string> | undefined;
+  const deadIngestable = !!lv && ingestable.length > 0
+    && ingestable.every((k) => ["dead", "empty", "private", "unparseable"].includes(lv[k] ?? ""));
+
   // следующее действие (что делать дальше по этой пивоварне)
   let nextAction = "ok";
   if (ov.blocked) nextAction = `blocked: ${ov.blocked}`;
+  else if (deadIngestable) nextAction = `brewery-research (источник протух: ${ingestable.map((k) => `${k}=${lv![k]}`).join(",")})`;
   else if (sources.size === 0) nextAction = "brewery-research (нет источников)";
   else if (total === 0 && ingestable.length === 0)
     nextAction = `brewery-research (нет читаемого источника: ${[...sources].join(",")})`;
   else if (total === 0) nextAction = `ingest-sorts (источники: ${ingestable.join(",")})`;
   else if (auto > 0 && auto <= (ov.needsReview?.length ?? 0)) nextAction = `human-review (${auto} спорных)`;
   else if (auto > 0) nextAction = `promote-sorts (${auto} auto)`;
+  // refresh/freshness (task-24): «готовая» пивоварня возвращается в очередь по давности живого
+  // источника. TG — инкремент (дёшево, чаще); Untappd — page-1 новейших (реже). Только активные
+  // (не blocked, источник ingestable) — гарантируется условиями выше по цепочке. СТОИТ ПЕРЕД demand:
+  // свежесть каталога ортогональна продаже в магазинах (иначе пивоварни без листингов не рефрешатся).
+  else if (h.channel && stale(h.lastRun, FRESH.tgDays)) nextAction = `refresh-tg (${daysSince(h.lastRun)}д)`;
+  else if (untappdUrl && untappdIngestable && stale(h.untappd?.lastRun, FRESH.untappdDays))
+    nextAction = `refresh-untappd (${daysSince(h.untappd?.lastRun)}д)`;
   else if (dem.listings === 0) nextAction = "demand: нет листингов (магазин города)";
 
   // partial: untappd-ингест добрал меньше реального тотала (логин-гейт без cookie / догрузка не
@@ -98,6 +129,17 @@ const sellers = db.query(
   "SELECT seller, COUNT(*) listings, COUNT(DISTINCT beer_id) linked, MAX(seen_at) lastSeen FROM price_listings WHERE seller IS NOT NULL GROUP BY seller",
 ).all() as { seller: string; listings: number; linked: number; lastSeen: string }[];
 
+// recurring/freshness (task-25): парсибельный магазин (есть ingestConfig), чей lastScan старше
+// порога (или null) → стадия recurring-due → очередь rescan-shop. История цен копится сама
+// (price_snapshots в repo.ts), перескан её не затирает. blocked/без-конфига — не трогаем.
+const shopState = shopRegistry
+  .filter((s) => s.ingestConfig)
+  .map((s) => ({
+    id: s.id, name: s.name, platform: s.ingestConfig?.platform ?? null,
+    lastScan: s.lastScan ?? null, daysOld: daysSince(s.lastScan),
+    recurringDue: s.lastScan == null || stale(s.lastScan, FRESH.shopDays),
+  }));
+
 // города: из городов пивоварен (+ später магазинов)
 const cityAgg = new Map<string, { breweries: number }>();
 for (const b of breweries) if (b.city) cityAgg.set(b.city, { breweries: (cityAgg.get(b.city)?.breweries ?? 0) + 1 });
@@ -106,6 +148,7 @@ const state = {
   generatedAt: new Date().toISOString().slice(0, 10),
   breweries: brewState,
   shops: sellers,
+  shopRegistry: shopState,
   cities: [...cityAgg.entries()].map(([city, v]) => ({ city, ...v })),
 };
 await Bun.write("data/pipeline/state.json", JSON.stringify(state, null, 2));
@@ -114,13 +157,17 @@ if (jsonOnly) { console.log("→ data/pipeline/state.json"); process.exit(0); }
 // ---- машинный план для оркестратора (pipeline-run) ----
 if (planOnly) {
   // приоритет: promote (дёшево, чистит канон) → ingest (добор сортов) → research (разблокировка)
-  // → demand (магазины города). human-review/blocked — гейты, НЕ в план.
-  const PRIORITY = ["promote-sorts", "ingest-sorts", "brewery-research", "demand"];
+  // → demand (магазины города) → refresh/rescan (поддержка свежести, task-24/25 — в хвост, после
+  // первичной заливки). human-review/blocked — гейты, НЕ в план.
+  const PRIORITY = ["promote-sorts", "ingest-sorts", "brewery-research", "demand", "refresh-tg", "refresh-untappd", "rescan-shop"];
   const HOW: Record<string, string> = {
     "promote-sorts": "скилл promote-sorts по каждой пивоварне (можно параллельно субагентами) → promote-sorts.ts",
     "ingest-sorts": "ingest по источнику: Untappd→`ingest-untappd.ts <slug...>` (URL берётся из breweries.links, MAP редактировать НЕ нужно); TG→fetch-channels+ingest-sorts",
     "brewery-research": "скилл brewery-research по каждой (параллельно субагентами) → links/ingest-hints",
     "demand": "скилл shop-discovery по городу пивоварни → реестр магазинов → скан",
+    "refresh-tg": "инкремент TG: `fetch-channels.ts <slug...>` → экстракт → `ingest-sorts.ts` (только новое по newestId, дёшево)",
+    "refresh-untappd": "новейшие сорта с Untappd: `UNTAPPD_NO_PAGINATE=1 ingest-untappd.ts <slug...>` (page-1, без полной пагинации)",
+    "rescan-shop": "перескан магазина единым движком: `ingest-shop-platform.ts <id>` (история цен копится сама)",
   };
   const group: Record<string, string[]> = {};
   for (const b of brewState) {
@@ -129,6 +176,9 @@ if (planOnly) {
     if (key === "human-review") continue; // гейт человека
     (group[key] ??= []).push(b.slug);
   }
+  // магазины-перескан (task-25): отдельная группа, slugs = id магазина из реестра
+  const dueShops = shopState.filter((s) => s.recurringDue).map((s) => s.id);
+  if (dueShops.length) group["rescan-shop"] = dueShops;
   const plan = PRIORITY.filter((a) => group[a]?.length).map((action, i) => ({
     action, priority: i + 1, count: group[action]!.length, slugs: group[action]!, how: HOW[action],
   }));
@@ -184,5 +234,9 @@ if (partial.length) {
 
 console.log("\n=== МАГАЗИНЫ ===");
 for (const s of sellers) console.log(`  ${s.seller.padEnd(20)} листингов ${s.listings} (связано ${s.linked}) | посл. скан ${s.lastSeen}`);
+const dueShops = shopState.filter((s) => s.recurringDue);
+if (dueShops.length)
+  console.log(`\n=== ПЕРЕСКАН НУЖЕН (recurring, lastScan > ${FRESH.shopDays}д) — ${dueShops.length} ===\n  ${
+    dueShops.map((s) => `${s.id} (${s.lastScan ? `${s.daysOld}д` : "ни разу"})`).join(", ")}`);
 console.log(`\n=== ГОРОДА: ${cityAgg.size} (с пивоварнями) ===`);
 db.close();
