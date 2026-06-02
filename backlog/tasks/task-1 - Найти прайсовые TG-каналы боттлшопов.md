@@ -4,7 +4,7 @@ title: Найти TG-каналы баров/магазинов для слоя 
 status: To Do
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:54'
+updated_date: '2026-06-02 10:00'
 labels:
   - demand
   - phase-0
@@ -25,3 +25,19 @@ dependencies: []
 - [ ] #3 Список занесён в `vault/research/telegram-sources.md` и в `sources.ts`
 - [ ] #4 Занесены в data/pipeline/shops.json (platform=telegram) и/или vault/research/telegram-sources.md
 <!-- AC:END -->
+
+## Implementation Notes
+
+<!-- SECTION:NOTES:BEGIN -->
+Заход НН 2026-06-02 (shop-discovery + parse). Метод расширен ЗА пределы TG: каналы баров
+системно плохо парсятся — VK/Instagram за логином (VK-стена = SPA+анти-бот, cookie логинит,
+но контент не отдаёт; см. memory untappd-venue-not-demand-source); Untappd-venue неверифиц.
+заведений = только 5 Popular Drinks. Чистый источник по городу = РЕАЛЬНЫЙ каталог магазина
+(fish-business: Bitrix, 398 листингов). Для баров без структуры — НОВАЯ платформа `prose`
+(LLM-кандидаты → matcher, см. data/ingest/prose-flow.md): Шустрый Шмель → 50 листингов (36%).
+Заведено по НН: fish-business-nn (scanned), 4tozabar-nn=Шмель (prose, scanned), vashchehov-nn
+(telegram, scanned) + 7 баров discovered с вердиктами. Открытый кандидат на prose: hophead-nn.
+Свежесть prose — отдельная задача (recurring для prose). AC #1 (>=15 каналов) пересмотреть:
+по факту публичных парсибельных TG-тап-листов мало; цель сместилась на «любой машинный
+источник доступности по городу» (каталог / TG / prose).
+<!-- SECTION:NOTES:END -->
