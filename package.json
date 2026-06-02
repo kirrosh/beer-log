@@ -8,6 +8,7 @@
     "parse:tg": "bun run packages/parsers/src/run.ts",
     "catalog:export": "bun run scripts/export-catalog.ts",
     "digest:gen": "bun run scripts/gen-digest.ts",
+    "demand:candidates": "bun run scripts/unmatched-brands.ts",
     "web": "bun --filter @beer-log/web dev",
     "web:build": "bun run catalog:export && bun run digest:gen && bun --filter @beer-log/web build"
   },
