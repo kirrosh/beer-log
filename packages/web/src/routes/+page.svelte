@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { beers, breweries, counts, styleDistribution, cities, beersOf } from "$lib/catalog";
+  import { beers, breweries, counts, styleDistribution, cities, beersOf, verifiedByBrewery, inShops } from "$lib/catalog";
   import { catMeta } from "$lib/styles";
   import Chip from "$lib/Chip.svelte";
 
@@ -10,6 +10,8 @@
   let city = $state("");
   let minAbv = $state(0);
   let onlyValidated = $state(false);
+  let onlyVerified = $state(false); // провенанс task-21: подтверждён офиц. каналом пивоварни
+  let onlyInShops = $state(false);  // встречается у продавцов (demand)
   let onlyTg = $state(false);
   let sort = $state("name");
 
@@ -32,6 +34,8 @@
     let r = beers.filter((b) => {
       if (activeCats.length && !activeCats.includes(b.style?.category ?? "unknown")) return false;
       if (onlyValidated && b.status !== "validated") return false;
+      if (onlyVerified && !verifiedByBrewery(b)) return false;
+      if (onlyInShops && !inShops(b)) return false;
       if (minAbv > 0 && (b.abv ?? 0) < minAbv) return false;
       if (city) { const br = b.brewerySlug ? breweries.find((x) => x.slug === b.brewerySlug) : null; if (br?.city !== city) return false; }
       if (term) {
@@ -67,8 +71,8 @@
   });
 
   const resultCount = $derived(view === "beers" ? filteredBeers.length : filteredBreweries.length);
-  const hasFilters = $derived(activeCats.length > 0 || !!city || minAbv > 0 || onlyValidated || onlyTg || !!q.trim());
-  function reset() { q = ""; activeCats = []; city = ""; minAbv = 0; onlyValidated = false; onlyTg = false; }
+  const hasFilters = $derived(activeCats.length > 0 || !!city || minAbv > 0 || onlyValidated || onlyVerified || onlyInShops || onlyTg || !!q.trim());
+  function reset() { q = ""; activeCats = []; city = ""; minAbv = 0; onlyValidated = false; onlyVerified = false; onlyInShops = false; onlyTg = false; }
   const fmtAbv = (n: number | null) => (n == null ? "—" : `${n.toFixed(1)}%`);
 </script>
 
@@ -131,6 +135,8 @@
         <option value={10}>≥ 10%</option>
       </select>
       <label class="chk"><input type="checkbox" bind:checked={onlyValidated} /> verified</label>
+      <label class="chk" title="есть офиц. источник пивоварни"><input type="checkbox" bind:checked={onlyVerified} /> ✓ пивоварня</label>
+      <label class="chk" title="встречается у продавцов"><input type="checkbox" bind:checked={onlyInShops} /> в продаже</label>
     {:else}
       <label class="chk"><input type="checkbox" bind:checked={onlyTg} /> с офиц. TG</label>
     {/if}
