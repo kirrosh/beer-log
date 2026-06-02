@@ -44,7 +44,7 @@
           <span class="place" class:opt={p.kind === "opt"}>
             <a class="snm slink" href={sellerUrl(p.seller)} target="_blank" rel="noopener">{sellerLabel(p.seller)} ↗</a>
             <span class="kind k-{p.kind}">{SELLER_KIND_LABEL[p.kind]}</span>
-            <span class="cnt mono">{p.listedBeers} {plur(p.listedBeers, "сорт", "сорта", "сортов")}</span>
+            {#if p.listedBeers != null}<span class="cnt mono">{p.listedBeers} {plur(p.listedBeers, "сорт", "сорта", "сортов")}</span>{/if}
           </span>
         {/each}
       </div>

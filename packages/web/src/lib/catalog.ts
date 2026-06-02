@@ -1,6 +1,7 @@
 // Типизированный доступ к снапшоту каталога + вычисление меты.
 // Снапшот генерируется scripts/export-catalog.ts из data/catalog.sqlite.
 import snapshot from "./data/catalog.json";
+import digestJson from "./data/digest.json";
 
 export interface Link { kind: string; url: string; title?: string }
 /** Тип точки продажи: магазин / бар (TG-разлив) / опт (цену как розницу не показываем). */
@@ -15,8 +16,9 @@ export interface BeerDemand {
   listings: number; sellers: string[]; reach: number; discounted: boolean;
   minPrice: number | null; maxPrice: number | null; places: Place[];
 }
-/** Точка продажи в агрегате пивоварни: продавец + сколько её сортов там встречается. */
-export interface BreweryPlace { seller: string; kind: SellerKind; listedBeers: number }
+/** Точка продажи в агрегате пивоварни: продавец + сколько её сортов там встречается.
+ *  listedBeers === null в публичной сборке (per-seller разбивка под гейтом, task-11). */
+export interface BreweryPlace { seller: string; kind: SellerKind; listedBeers: number | null }
 /** Спрос по пивоварне: объединённый охват магазинов, всего листингов, сортов в продаже. */
 export interface BreweryDemand { reach: number; listings: number; listedBeers: number; places: BreweryPlace[] }
 export interface Brewery {
@@ -35,10 +37,29 @@ export interface Beer {
 }
 
 export const generatedAt: string = snapshot.generatedAt;
+/** Полная (PRIVATE) сборка: per-seller цены/разбивка в снапшоте. false на паблике. */
+export const isFull: boolean = (snapshot as { full?: boolean }).full ?? false;
 export const breweries: Brewery[] = snapshot.breweries as Brewery[];
 export const beers: Beer[] = snapshot.beers as Beer[];
 
 export const brewBySlug = new Map(breweries.map((b) => [b.slug, b]));
+
+// ── Мета-дайджест (task-11): факты детерминированно + LLM-проза, генерит scripts/gen-digest.ts ─
+/** Один факт-блок дайджеста (для числовых плашек на /meta). */
+export interface DigestStyle { category: string; label: string; count: number; pct: number }
+export interface Digest {
+  generatedAt: string;
+  mode: "prose-file" | "template";
+  facts: {
+    counts: Record<string, number>;
+    styleDist: DigestStyle[];
+    topCities: { city: string; count: number }[];
+    topBreweries: { name: string; city: string | null; reach: number; listedBeers: number }[];
+    topBeers: { name: string; brewery: string | null; reach: number; minPrice: number | null }[];
+  };
+  prose: string;
+}
+export const digest: Digest = digestJson as Digest;
 
 export function beersOf(brewerySlug: string): Beer[] {
   return beers.filter((b) => b.brewerySlug === brewerySlug);

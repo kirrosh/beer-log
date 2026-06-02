@@ -7,8 +7,9 @@
     "typecheck": "tsc --noEmit",
     "parse:tg": "bun run packages/parsers/src/run.ts",
     "catalog:export": "bun run scripts/export-catalog.ts",
+    "digest:gen": "bun run scripts/gen-digest.ts",
     "web": "bun --filter @beer-log/web dev",
-    "web:build": "bun run catalog:export && bun --filter @beer-log/web build"
+    "web:build": "bun run catalog:export && bun run digest:gen && bun --filter @beer-log/web build"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

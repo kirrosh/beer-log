@@ -8,6 +8,13 @@ import { sourceChannelOfUrl, type SourceChannel } from "@beer-log/parsers";
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const OUT = "packages/web/src/lib/data/catalog.json";
 
+// Гейт гранулярной аналитики спроса (task-11). По умолчанию сборка ПУБЛИЧНАЯ: справочник +
+// мета (наличие, охват, тренды, диапазон цен по сорту) открыты, но per-seller разбивка —
+// цена по каждой точке и сколько сортов марки лежит у каждого продавца — НЕ попадает в
+// публичный JSON (иначе её можно вытащить из бандла). Это и есть «гранулярная аналитика —
+// по запросу». Полная выгрузка: PRIVATE=1 bun run web:build (для B2B-аналитики, не паблик).
+const PRIVATE = process.env.PRIVATE === "1" || process.env.PRIVATE === "true";
+
 // Опт/дистрибьюторы: их цены — за упаковку, не розница; из ценового диапазона исключаем
 // (но в reach/листинги они входят — наличие сорта это всё равно сигнал).
 const OPT_SELLERS = new Set(["kraftbeer.ru"]);
@@ -109,7 +116,8 @@ const beersAll = (db.query(
         discounted: pl.some((x) => x.discounted === 1),
         minPrice: retailPrices.length ? Math.min(...retailPrices) : null,
         maxPrice: retailPrices.length ? Math.max(...retailPrices) : null,
-        places,
+        // публичная сборка: «где найти» (продавцы) видно, цена по точке — нет (гейт task-11)
+        places: PRIVATE ? places : places.map((p) => ({ ...p, minPrice: null })),
       }
     : null;
   return {
@@ -163,9 +171,10 @@ const breweriesOut = breweries.map((b) => {
           reach: agg.shops.size,
           listings: agg.listings,
           listedBeers: agg.listedBeers,
+          // публичная сборка: список продавцов виден, число сортов у точки — нет (гейт task-11)
           places: [...agg.shops.entries()]
-            .map(([seller, listedBeers]) => ({ seller, kind: sellerKind(seller), listedBeers }))
-            .sort((a, b) => (b.listedBeers - a.listedBeers) || a.seller.localeCompare(b.seller)),
+            .map(([seller, listedBeers]) => ({ seller, kind: sellerKind(seller), listedBeers: PRIVATE ? listedBeers : null }))
+            .sort((a, b) => ((b.listedBeers ?? 0) - (a.listedBeers ?? 0)) || a.seller.localeCompare(b.seller)),
         }
       : null,
   };
@@ -173,6 +182,8 @@ const breweriesOut = breweries.map((b) => {
 
 const snapshot = {
   generatedAt: new Date().toISOString().slice(0, 10),
+  // true в полной (PRIVATE) сборке — витрина прячет плашку «аналитика по запросу»
+  full: PRIVATE,
   counts: {
     breweries: breweriesOut.length,
     beers: beers.length,
