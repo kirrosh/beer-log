@@ -3,6 +3,13 @@
 Хронология работы над вики. Префикс строки: `## [YYYY-MM-DD] <тип> | <тема>`.
 Парсится юникс-тулзами: `grep "^## \[" log.md | tail -5`.
 
+## [2026-06-02] research | task-13 — VK-путь проверен, массовый ингест свёрнут
+Все безаккаунтные VK-пути закрыты (m.vk badbrowser / vk.com desktop unsupported / API
+token-required / AJAX hash+cookie). Залогиненный браузер (Claude in Chrome) VK читает,
+но стены ponarth/greybrewery — блог/анонсы без структурированного ассортимента, ROI как
+источника сортов низкий. Решение: массовый VK-ингест не делаем, 48 VK-only остаются
+blocked. Память: vk-public-paths-closed. VK-парсер (task-13) — open/low.
+
 ## [2026-06-02] catalog | task-21 #5 — разбор human-review ресёрчем (11 пивоварен)
 Спорные shop-only auto-сорта 11 крупных пивоварен (salden-s, 4-brewers, afbrew,
 panzer, odna-tonna, rewort, zagovor, ganza, gusi, big-village, on-the-bones) разобраны
