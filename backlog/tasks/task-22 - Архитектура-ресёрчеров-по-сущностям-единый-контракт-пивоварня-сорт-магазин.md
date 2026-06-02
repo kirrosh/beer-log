@@ -3,9 +3,10 @@ id: TASK-22
 title: >-
   Архитектура «ресёрчеров» по сущностям: единый контракт (пивоварня / сорт /
   магазин) — skill + скрипты + инструкции + данные
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-01 17:10'
+updated_date: '2026-06-02 12:31'
 labels:
   - pipeline
   - infra
@@ -52,7 +53,7 @@ control-plane. Из-за этого (а) per-source ingest-скрипты пло
 - [x] #2 Контракт описан в вики (новая `vault/product/entity-researchers.md` + правки `operating-pipeline.md` и `AGENTS.md`); каждый ресёрчер декларирует, какие действия `pipeline-status --plan` он owns
 - [x] #3 Существующее разложено по бандлам сущностей (манифест на сущность: какой skill, какие скрипты, какой раннбук, какие data-файлы) — без переписывания, организация того, что есть
 - [x] #4 Явно выписаны пробелы по каждой сущности (см. ниже) с приоритетами и под-задачами
-- [ ] #5 Первый консолидационный срез реализован: единый shop-ingest по платформе (bitrix/woocommerce/insales/custom-json/telegram) — новый магазин = конфиг в `shops.json`, а не новый bespoke-скрипт. На нём контракт проверен «в бою» → вынесено в **TASK-23**
+- [x] #5 Первый консолидационный срез реализован: единый shop-ingest по платформе (bitrix/woocommerce/insales/custom-json/telegram) — новый магазин = конфиг в `shops.json`, а не новый bespoke-скрипт. На нём контракт проверен «в бою» → реализовано в **TASK-23** (Done): движок `ingest-shop-platform.ts` + `lib/shop-ingest.ts` + парсеры `parsers/shops/platforms.ts`, 5 bespoke-скриптов удалены, 8 магазинов на `ingestConfig` (включая новые hophead-nn/4tozabar-nn/fish-business-nn, заведённые конфигом без новых скриптов)
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -109,5 +110,10 @@ log обновлены. Пробелы заведены под-задачами:
 recurring/freshness); VK = TASK-13, самовосстановление парсеров = TASK-5, провенанс =
 TASK-21 — уже есть. Спайн оркестрации (pipeline-status --plan → pipeline-run) не тронут.
 
-**Осталось:** #5 — реализация единого shop-ingest, ведётся в **TASK-23**.
+**Закрыто (2026-06-02):** #5 реализован в **TASK-23** (Done) — платформенный движок
+`ingest-shop-platform.ts` + `lib/shop-ingest.ts` + чистые парсеры `parsers/shops/platforms.ts`;
+5 bespoke-скриптов удалены; магазин = `ingestConfig` в `shops.json` (8 шт по платформам
+woocommerce/bitrix/custom-json/telegram/prose). Контракт подтверждён «в бою»: новые магазины
+(hophead-nn / 4tozabar-nn / fish-business-nn) заведены конфигом без новых скриптов. typecheck
+чист. Все AC закрыты — задача в Done.
 <!-- SECTION:NOTES:END -->
