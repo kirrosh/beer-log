@@ -12,7 +12,7 @@ import {
 import { buildMatcher } from "./catalog-matcher.ts";
 import type { Database } from "bun:sqlite";
 
-export type ShopPlatform = "woocommerce" | "bitrix" | "custom-json" | "telegram";
+export type ShopPlatform = "woocommerce" | "bitrix" | "custom-json" | "telegram" | "prose";
 
 /** Конфиг магазина для движка — кладётся в shops.json (`ingestConfig`). */
 export interface ShopIngestConfig {
@@ -34,6 +34,8 @@ export interface ShopIngestConfig {
   // telegram (бар → тап-лист)
   handle?: string;
   sourceUrl?: string;
+  // prose (бар/блог без структуры → LLM-извлечённые кандидаты сортов)
+  proseFile?: string;    // путь к JSON {items:[{brewery,sort,style?,date?}]} (см. ingest-prose flow)
   // общее
   maxPages?: number;     // потолок пагинации (по умолчанию по платформе)
 }
@@ -110,12 +112,35 @@ async function* telegramPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]>
   yield parseTelegramTapList(parseChannelHtml(html));
 }
 
+// prose: прозаический источник (TG-проза / блог-анонсы) без машинной структуры. Извлечение
+// кандидатов {brewery, sort} делает LLM-субагент → JSON-файл (regex прозу не берёт). Здесь —
+// детерминированно: читаем файл, склеиваем «Пивоварня Сорт» в title → общий matcher как у telegram.
+interface ProseItem { brewery?: string; sort?: string; style?: string; date?: string }
+async function* prosePages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
+  if (!cfg.proseFile) return;
+  const file = Bun.file(cfg.proseFile);
+  if (!(await file.exists())) { console.error(`! prose: файл не найден ${cfg.proseFile}`); return; }
+  const raw = await file.json() as { items?: ProseItem[] };
+  const items: ShopItem[] = [];
+  for (const p of raw.items ?? []) {
+    const brewery = (p.brewery ?? "").trim();
+    const sort = (p.sort ?? "").trim();
+    if (!sort && !brewery) continue;
+    const title = [brewery, sort].filter(Boolean).join(" ").replace(/\s+/g, " ");
+    const extId = `${brewery}-${sort}`.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    if (!extId) continue;
+    items.push({ extId, title, format: "draft" });
+  }
+  yield items;
+}
+
 function platformPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
   switch (cfg.platform) {
     case "woocommerce": return woocommercePages(cfg);
     case "bitrix":      return bitrixPages(cfg);
     case "custom-json": return customJsonPages(cfg);
     case "telegram":    return telegramPages(cfg);
+    case "prose":       return prosePages(cfg);
   }
 }
 
@@ -132,7 +157,9 @@ export async function runShopIngest(
   db: Database, cfg: ShopIngestConfig, opts: { dry: boolean; today: string },
 ): Promise<IngestResult> {
   const { dry, today } = opts;
-  const isTelegram = cfg.platform === "telegram";
+  // draft-источники без цены (telegram-тап-лист / prose-анонсы): NONBEER не применяем,
+  // берём позицию, если узнали пивоварню ИЛИ строка похожа на пиво.
+  const isDraft = cfg.platform === "telegram" || cfg.platform === "prose";
   const matcher = buildMatcher(db, { createAuto: !dry });
   console.log(`матчер: ${matcher.breweryCount} пивоварен / ${matcher.aliasCount} алиасов | DRY=${dry}`);
 
@@ -146,8 +173,7 @@ export async function runShopIngest(
     for (const it of items) {
       if (seen.has(it.extId)) continue;
       const mm = matcher.match(it.title);
-      // telegram: цены нет, NONBEER не применяем — берём, если узнали пивоварню ИЛИ строка похожа на пиво
-      if (isTelegram) {
+      if (isDraft) {
         if (!mm.breweryId && !looksLikeBeerLine(it.title)) continue;
       } else if (NONBEER.test(it.title)) { r.skipped++; seen.add(it.extId); continue; }
       seen.add(it.extId);
