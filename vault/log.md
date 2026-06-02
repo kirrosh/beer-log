@@ -3,6 +3,16 @@
 Хронология работы над вики. Префикс строки: `## [YYYY-MM-DD] <тип> | <тема>`.
 Парсится юникс-тулзами: `grep "^## \[" log.md | tail -5`.
 
+## [2026-06-02] catalog | task-21 #5 — разбор human-review ресёрчем (11 пивоварен)
+Спорные shop-only auto-сорта 11 крупных пивоварен (salden-s, 4-brewers, afbrew,
+panzer, odna-tonna, rewort, zagovor, ganza, gusi, big-village, on-the-bones) разобраны
+ресёрчем (Untappd/гугл) — 4 субагента promote-sorts на sonnet. 21 auto → 1: ~16 merge
+(усечённые магазинные имена → подтверждённый канон), 3 validate (ApfelWein, Symbiotica
+Apple, It's Over 9000), 1 drop (luna-park). human-review гейт 11→1 (остался afbrew
+Symbiotica Perry — неразрешим без этикетки), shop-only 423→406, план разблокирован.
+Также ранее: task-11 закрыт (/meta дайджест + гейт PRIVATE), task-22 закрыт (#5 через
+task-23), task-21 #6 (фильтры каталога «✓ пивоварня»/«в продаже»).
+
 ## [2026-06-01] infra | task-23 — единый shop-ingest по платформе (proof контракта ресёрчеров)
 Diff: bespoke-скрипт-на-магазин (5 шт) заменён единым движком, параметризованным платформой.
 Чистые парсеры по платформе → @beer-log/parsers (shops/platforms.ts): parseWoocommerce/
