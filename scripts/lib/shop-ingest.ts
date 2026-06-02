@@ -27,6 +27,7 @@ export interface ShopIngestConfig {
   baseUrl?: string;
   idRegex?: string;      // источник regex, напр. "beer-(\\d+)" или "/(\\d+)/?$"
   requireId?: boolean;
+  pagenParam?: string;   // имя параметра пагинации Bitrix, если не PAGEN_1 (напр. PAGEN_2 — fish-business)
   // custom-json (storebeer)
   apiBase?: string;
   productBase?: string;
@@ -71,10 +72,11 @@ async function* woocommercePages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem
 async function* bitrixPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
   const MAX = cfg.maxPages ?? 300;
   const idRegex = cfg.idRegex ? new RegExp(cfg.idRegex) : undefined;
+  const pagen = cfg.pagenParam ?? "PAGEN_1";   // у части шаблонов пагинатор второй (PAGEN_2)
   for (const base of cfg.catalogs ?? []) {
     const catSeen = new Set<string>();       // стоп-условие в пределах категории (Bitrix wrap → стр.1)
     for (let page = 1; page <= MAX; page++) {
-      const url = page > 1 ? `${base}?PAGEN_1=${page}` : base;
+      const url = page > 1 ? `${base}?${pagen}=${page}` : base;
       const html = await fetchText(url);
       if (html === null) break;
       const items = parseBitrixCatalog(html, { baseUrl: cfg.baseUrl!, idRegex, requireId: cfg.requireId });
