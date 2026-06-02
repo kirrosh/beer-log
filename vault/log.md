@@ -3,6 +3,14 @@
 Хронология работы над вики. Префикс строки: `## [YYYY-MM-DD] <тип> | <тема>`.
 Парсится юникс-тулзами: `grep "^## \[" log.md | tail -5`.
 
+## [2026-06-02] catalog | task-28 — demand-driven расширение канона (закрыта)
+#1: `scripts/unmatched-brands.ts` (`demand:candidates`) агрегирует unmatched-листинги
+по бренду с частотой+охватом, matcher отсекает канон-промахи. #2: alias-fix канона
+(Red Button/Chibis/Black Cat, −370 unmatched) + завод топ-9 новых (brewery-research
+субагентами → upsertBrewery → ingest-untappd 1594 сорта): White Stone, Magic Mess,
+Big Pot, BAD Brew, Tarkos, Atmosphere, Red Rocket, Mantra, Dieta. #3: отсев импорта/
+не-пива (Lapochka=лимонады отсеяна). Каталог 238→247 пивоварен, +1666 сортов.
+
 ## [2026-06-02] research | task-13 — VK-путь проверен, массовый ингест свёрнут
 Все безаккаунтные VK-пути закрыты (m.vk badbrowser / vk.com desktop unsupported / API
 token-required / AJAX hash+cookie). Залогиненный браузер (Claude in Chrome) VK читает,
