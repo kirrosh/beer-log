@@ -111,4 +111,55 @@ fuzzy-дедуп (promote-sorts), а не повторный ingest. **Реал�
 untappd-ссылки (selfmade-brewery, konix-brewery, medovarnya — нужен brewery-research →
 ingest). Память: [[shop-only-pass-targets]]. Батч добавил +6 сортов и обновил untappd-
 coverage в ingest-hints (эти 4 ~полностью покрыты).
+
+**Батч #5 (2026-06-02 #2) — gap-рукав через research→ingest→promote.** Прошёл по пивоварням
+с ПРОБЕЛОМ (нет untappd / untappd-error), как велит [[shop-only-pass-targets]], а не по топу
+shop-only. Research-субагенты (sonnet) по 6 целям, затем последовательный ingest и promote.
+Итог: **shop-only 627→593 (−34)**, пивоварен с shop-only 48→46, провенанс 19313→19368 (+55).
+- **kraft** (Владивосток): research нашёл untappd `kraftbeer_vl` (был только TG/VK) → ingest 19
+  сортов; 17 shop-only оказались НЕ её листингами (зефир-конфеты + чужие бренды «Simply Craft»/
+  «Bar Ale»/«Rouge de Bruxelles», подвязанные по слову craft) → drop. shop-only 17→0.
+- **crazy-brew** (Нижний Тагил): research нашёл untappd `CrazyBrewRU` → ingest 36; exact-slug
+  склейка 9→4, promote-merge 4 generic→Simply-Craft-канон + validate 5 эксклюзивов → 0.
+- **hops** (Пермь, нано): untappd `/w/hops/299018` = всего 1 сорт; 14 «shop-only» — чужие бренды
+  со словом hops (North/True/Yellow Hops) → 8 drop + 6 в needs-review человеку. shop-only 14→6.
+- **blocked (метка стала точной = «нет офиц. канала»):** victory-art-brew (defunct, Untappd
+  'no longer in business', сайт мёртв, список пуст), xp-brew (defunct + JS-only), sorre
+  (французская сидрерия Cidre Sorre — сидр, вне РФ-крафт-скоупа; ошибочная идентификация).
+- **Урок:** пивоварни с generic-именем («Kraft», «Hops») аккретят чужие листинги по подстроке
+  → их хвост чистится **drop**, не merge. Untappd с `data-bid=0` при HTTP 200 = defunct/JS-пусто
+  (victory-art-brew, xp-brew) → blocked, не ingest.
+
+**chibis-brewery merge-проход (2026-06-02 #3).** Первый promote-проход по 76 auto shop-only
+против 216 Untappd-канона: **merge 64 + validate 6 + review 6 → shop-only 76→12, общий 593→529
+(−64)**. Merge — чистые транслит/вариант-совпадения («Carambolage»→«Карамбуляж», «Raschyot
+Moshnosti»→«Расчёт мощности», «Hell Man Flamenco Gose»→«Hell Man: Flamenco»). 6 validate =
+genuine shop-эксклюзивы (серия «Пчела принесла», «Птичий короб» — нет в Untappd, остаются
+shop-only, метка корректна). 6 review (имя без спецификации хмеля — неясно какой canon-вариант:
+«Чибис ИПА», «Sour Bank», «Старая Пигалица»…) → overrides needsReview человеку. Подтвердило:
+у крупного уже-заингещенного хвоста ПЕРВЫЙ merge-проход даёт ~84% схлопывания (64/76).
+
+**Топ-5 первых merge-проходов (2026-06-02 #4).** Параллельные promote-субагенты (sonnet) по
+untappd-ok пивоварням без прошлого прохода: **tarkos 23→2, white-stone 10→2, dieta 9→2,
+magic-mess 9→4, mantra-brewery 9→3** (merge 20/8/5/3/5). + блок medovarnya-tradicii-predkov
+(медоварня, мёд — вне скоупа). Итог батча: **shop-only 529→482 (−47)**. Остатки 2–4 = review-
+элементы человеку (имя без спецификации хмеля / неоднозначный канон).
+- **Грабли apply'я:** субагент может записать `drop` как массив ОБЪЕКТОВ `{slug,reason}` вместо
+  строк — `promote-sorts.ts` ждёт `drop: string[]`, на объекте падает `TypeError: Binding
+  expected string` (sqlite-биндинг). Перед apply нормализовать: `drop.map(d=>typeof d==="string"?d:d.slug)`.
+- **Чужие коллабы → drop:** «Magic Mantra (Mantra/Collaboration with Magic Mess)» под magic-mess =
+  пиво пивоварни Mantra, Magic Mess лишь соавтор → drop (не её канон). «Container bucket» (один
+  shop-сорт с 15 листингами разных канон-сортов, имя-префикс «ДИЕТА/») → drop, листинги осиротеют.
+
+**Итог сессии по #5 (2026-06-02): shop-only 627→482 (−145).** Рукава: gap-research→ingest
+(kraft/crazy-brew/hops +55 канона, 3 блока), merge-проходы (chibis 76→12, tarkos/white-stone/
+dieta/magic-mess/mantra). Auto-сорта 289→138 (гигиена каталога).
+
+**Осталось по #5:** топ остатка — уже-пройденные крупные хвосты (salden-s 106, 4-brewers 64,
+konix 33, afbrew 22, panzer/odna-tonna 20, selfmade 18): первый проход снят (#1) — остаток
+genuine, не churn'ить. Следующие ПЕРВЫЕ проходы (untappd ok, нет promotions/<slug>.json) —
+по убыванию из pipeline-status: jaws-brewery (13)*, red-button (12), vasileostrovskaya (12)…
+(* проверять prevPass). Гейт review — накопленные needsReview человеку (chibis +6, magic-mess
++4, afbrew +1, по 2 у tarkos/white-stone/dieta/mantra). medovarnya: 17 mead-листингов остаются
+shop-only при blocked-пивоварне — кандидат на отдельный drop мёд-сортов.
 <!-- SECTION:NOTES:END -->
