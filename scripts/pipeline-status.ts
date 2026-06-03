@@ -6,7 +6,7 @@
 //   bun run scripts/pipeline-status.ts            # дашборд + queue
 //   bun run scripts/pipeline-status.ts --json     # только записать data/pipeline/state.json
 import { Database } from "bun:sqlite";
-import { classifyUntappdBeerListUrl } from "@beer-log/parsers";
+import { classifyUntappdBeerListUrl, sourceChannelOfUrl } from "@beer-log/parsers";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const db = new Database(DB_PATH, { readonly: true });
@@ -205,8 +205,22 @@ const shopOnly = brewState.reduce((a, b) => a + b.provenance.shopOnly, 0);
 const shopOnlyBrews = brewState.filter((b) => b.provenance.shopOnly > 0)
   .sort((a, b) => b.provenance.shopOnly - a.provenance.shopOnly);
 const pct = (n: number) => totalSorts ? `${((n / totalSorts) * 100).toFixed(0)}%` : "—";
+
+// многоканальный провенанс (task-26): сколько сортов подтверждено ≥2 НЕЗАВИСИМЫМИ офиц. каналами
+// (cross-source канон). Виды каналов классифицируем тем же sourceChannelOfUrl, что и экспорт.
+const chByBeer = new Map<string, Set<string>>();
+for (const r of db.query("SELECT beer_id, source_url FROM beer_sources").all() as { beer_id: string; source_url: string }[]) {
+  const ch = sourceChannelOfUrl(r.source_url);
+  if (!ch) continue;
+  (chByBeer.get(r.beer_id) ?? chByBeer.set(r.beer_id, new Set()).get(r.beer_id)!).add(ch);
+}
+const crossChannels = [...chByBeer.values()];
+const cross2 = crossChannels.filter((s) => s.size >= 2).length;
+const cross3 = crossChannels.filter((s) => s.size >= 3).length;
+
 console.log("\n=== ПРОВЕНАНС СОРТОВ (task-21) ===");
 console.log(`  подтверждён офиц. каналом пивоварни ${verified} (${pct(verified)})`);
+console.log(`  из них cross-source (≥2 независимых канала, task-26) ${cross2}${cross3 ? ` · ≥3 канала ${cross3}` : ""}`);
 console.log(`  только в продаже у магазина (не подтверждён) ${shopOnly} — рабочая очередь прохода по каналам`);
 if (shopOnlyBrews.length)
   console.log(`  пивоварен с shop-only сортами: ${shopOnlyBrews.length}, топ: ${

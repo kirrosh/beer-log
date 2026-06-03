@@ -1,7 +1,7 @@
 <script lang="ts">
   import { catMeta } from "$lib/styles";
   import { fmtPrice, plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, formatLabel,
-    CHANNEL_LABEL, beerConfidence } from "$lib/catalog";
+    channelLabels, beerConfidence, confirmationLevel } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const beer = $derived(data.beer);
@@ -10,7 +10,9 @@
   const m = $derived(catMeta(beer.style?.category));
   // провенанс (task-21): два рыночных сигнала + их комбинация
   const conf = $derived(beerConfidence(beer));
-  const channelNames = $derived(beer.channels.map((c) => CHANNEL_LABEL[c]).join(" · "));
+  const channelNames = $derived(channelLabels(beer));
+  // уровень подтверждённости (task-26): число независимых офиц. каналов; ≥2 = cross-source канон
+  const lvl = $derived(confirmationLevel(beer));
   const host = (u: string) => { try { return new URL(u).host.replace(/^www\./, ""); } catch { return u; } };
   // дата самого свежего снапшота среди точек продажи (данные best-effort, не живой остаток)
   const lastSeen = $derived(
@@ -43,10 +45,13 @@
 
   <!-- Провенанс (task-21): два независимых рыночных сигнала + комбинированная уверенность -->
   <section class="prov" class:gap={conf === "shop"}>
-    <span class="sig" class:on={beer.channels.length}>
-      <i class="mk">{beer.channels.length ? "✓" : "·"}</i>
+    <span class="sig" class:on={lvl} class:cross={lvl >= 2}>
+      <i class="mk">{lvl ? "✓" : "·"}</i>
       <span class="st">варит пивоварня</span>
-      {#if beer.channels.length}<span class="sub">по {channelNames}</span>{:else}<span class="sub off">у пивоварни не подтверждён</span>{/if}
+      {#if lvl}
+        <span class="sub">подтверждён {lvl} {plur(lvl, "источником", "источниками", "источниками")}: {channelNames}</span>
+        {#if lvl >= 2}<span class="badge" title="подтверждён несколькими независимыми офиц. каналами — самый надёжный канон">cross-source</span>{/if}
+      {:else}<span class="sub off">у пивоварни не подтверждён</span>{/if}
     </span>
     <span class="sig" class:on={beer.demand}>
       <i class="mk">{beer.demand ? "✓" : "·"}</i>
@@ -136,6 +141,10 @@
   .sig .st { font-weight: 500; color: var(--ink); font-size: 14px; }
   .sig .sub { color: var(--ink-dim); font-size: 12.5px; }
   .sig .sub.off { color: var(--ink-faint); }
+  /* cross-source канон (task-26): ≥2 независимых офиц. канала — высший класс доверия */
+  .sig.cross { border-color: color-mix(in srgb, var(--c-specialty) 58%, var(--line)); background: color-mix(in srgb, var(--c-specialty) 9%, var(--bg-elev)); }
+  .sig.cross .mk { color: var(--c-specialty); font-weight: 700; }
+  .sig .badge { font-size: 10px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; color: var(--c-specialty); border: 1px solid color-mix(in srgb, var(--c-specialty) 45%, var(--line)); border-radius: 5px; padding: 1px 6px; }
   .prov .hint { flex-basis: 100%; font-size: 12.5px; color: var(--ink-faint); line-height: 1.5; }
   .prov.gap .sig:first-child { border-color: color-mix(in srgb, var(--amber) 34%, var(--line)); }
   .prov.gap .sig:first-child .sub.off { color: var(--amber-dim); }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { catMeta, LINK_LABEL } from "$lib/styles";
-  import { plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL } from "$lib/catalog";
+  import { plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, CHANNEL_LABEL, CHANNEL_ORDER } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
   let { data } = $props();
   const brewery = $derived(data.brewery);
@@ -10,6 +10,13 @@
   const segLabel = $derived(brewery.segment === "craft" ? "крафт" : brewery.segment === "mainstream" ? "мейнстрим" : "—");
   const order = ["website", "telegram", "vk", "untappd"];
   const orderedLinks = $derived(brewery.links.slice().sort((a, b) => order.indexOf(a.kind) - order.indexOf(b.kind)));
+  // богатство источников (task-26): какими офиц. каналами реально подтверждён канон пивоварни,
+  // сколько сортов подтверждено и сколько из них — cross-source (≥2 независимых канала).
+  const provChannels = $derived(
+    [...new Set(beers.flatMap((b) => b.channels))].sort((a, b) => CHANNEL_ORDER.indexOf(a) - CHANNEL_ORDER.indexOf(b)),
+  );
+  const verifiedCount = $derived(beers.filter((b) => b.channels.length).length);
+  const crossCount = $derived(beers.filter((b) => b.channels.length >= 2).length);
 </script>
 
 <svelte:head><title>{brewery.name} — Beer Log</title></svelte:head>
@@ -33,6 +40,18 @@
           {LINK_LABEL[l.kind] ?? l.kind} ↗
         </a>
       {/each}
+    </div>
+  {/if}
+
+  <!-- Богатство источников (task-26): какими офиц. каналами подтверждён канон пивоварни -->
+  {#if verifiedCount}
+    <div class="prov">
+      <span class="pl">канон из источников:</span>
+      {#each provChannels as c}<span class="pch">{CHANNEL_LABEL[c]}</span>{/each}
+      <span class="pn">
+        {verifiedCount} из {total} {plur(total, "сорта", "сортов", "сортов")} подтверждено
+        {#if crossCount}<span class="cross">· {crossCount} cross-source (≥2 канала)</span>{/if}
+      </span>
     </div>
   {/if}
 
@@ -94,6 +113,13 @@
   .lnk:hover { color: var(--ink); border-color: var(--line-strong); }
   .lnk.primary { color: #1a1206; background: var(--amber); border-color: var(--amber); font-weight: 600; }
   .lnk.primary:hover { background: color-mix(in srgb, var(--amber) 88%, #fff); }
+
+  /* Богатство источников (task-26) */
+  .prov { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 2px 0 8px; font-size: 13px; }
+  .prov .pl { color: var(--ink-faint); }
+  .prov .pch { color: var(--c-specialty); border: 1px solid color-mix(in srgb, var(--c-specialty) 36%, var(--line)); border-radius: 999px; padding: 2px 10px; font-size: 12.5px; }
+  .prov .pn { color: var(--ink-dim); }
+  .prov .pn .cross { color: var(--c-specialty); font-weight: 500; }
 
   /* Где найти — агрегат доступности (task-20) */
   .where { margin-top: 24px; }

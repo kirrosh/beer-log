@@ -175,3 +175,19 @@ export function beerConfidence(b: Beer): Confidence {
   const v = verifiedByBrewery(b), s = inShops(b);
   return v && s ? "both" : v ? "brewery" : s ? "shop" : "none";
 }
+
+// ── Многоканальный провенанс (task-26): уровень подтверждённости ──────────────
+// «Канал» = вид офиц. источника пивоварни (host beer_sources). Независимость = разные
+// виды (untappd≠telegram≠vk≠website), не разные URL одного вида. Чем больше независимых
+// каналов сошлось на сорте — тем надёжнее запись. ≥2 = cross-source канон (самый надёжный).
+/** Порядок отображения каналов (стабильный, от структурного к вспомогательному). */
+export const CHANNEL_ORDER: SourceChannel[] = ["untappd", "telegram", "vk", "website"];
+/** Каналы сорта в стабильном порядке. */
+export const orderedChannels = (b: Beer): SourceChannel[] =>
+  b.channels.slice().sort((a, c) => CHANNEL_ORDER.indexOf(a) - CHANNEL_ORDER.indexOf(c));
+/** Уровень подтверждённости = число независимых офиц. каналов сорта. */
+export const confirmationLevel = (b: Beer): number => b.channels.length;
+/** Cross-source канон — подтверждён ≥2 независимыми каналами (высший класс доверия). */
+export const isCrossConfirmed = (b: Beer): boolean => b.channels.length >= 2;
+/** Каналы сорта человекочитаемо в стабильном порядке: «Untappd · Telegram». */
+export const channelLabels = (b: Beer): string => orderedChannels(b).map((c) => CHANNEL_LABEL[c]).join(" · ");
