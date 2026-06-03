@@ -155,3 +155,45 @@ export function parseTelegramTapList(messages: string[]): ShopItem[] {
   }
   return out;
 }
+
+// ── taplink (сети баров: taplink.cc/<seller>/p/<id> — тап-лист точки) ─────────
+// Контент server-rendered: тап-лист лежит JSON-строкой "text":"…\n1 - …\n2 - …" внутри
+// HTML (age-gate — лишь JS-оверлей, на GET не влияет). Строка точки парсибельна regex-ом:
+//   «N - Название Стиль Алк. X% Пл. Y% Пивоварня Г. Город ЦЕНА ₽»  (импорт: вместо «Г. Город» — страна)
+// Цена — за литр (разлив) → format=draft, volumeMl=1000 (цена за 1000 мл).
+
+/** Достать текстовый блок тап-листа из HTML точки taplink (JSON-строка с нумерованными позициями). */
+export function extractTaplinkText(html: string): string | null {
+  const re = /"text":"((?:\\.|[^"\\])*)"/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(html))) {
+    let decoded: string;
+    try { decoded = JSON.parse(`"${m[1]}"`); } catch { continue; }
+    if (/\n\s*\d+\s*[-—]\s+.+Алк\./.test(decoded)) return decoded;
+  }
+  return null;
+}
+
+const TAPLINK_LINE =
+  /^\s*(\d+)\s*[-—]\s+(.+?)\s+Алк\.\s+[\d,]+\s*%\s+Пл\.\s+[\d,]*\s*%?\s+(.+?)\s+(\d+)\s*₽\s*$/u;
+
+/** Тап-лист точки taplink (HTML) → ShopItem[]. title = «Пивоварня Название Стиль» для матчера. */
+export function parseTaplinkTapList(html: string): ShopItem[] {
+  const text = extractTaplinkText(html);
+  if (!text) return [];
+  const out: ShopItem[] = [];
+  for (const rawLine of text.split(/\r?\n/)) {
+    const line = decodeEntities(rawLine).replace(/‌/g, "").trim();
+    const m = line.match(TAPLINK_LINE);
+    if (!m) continue;
+    const titlePart = m[2]!.trim();          // название + стиль
+    const rest = m[3]!.trim();               // «Пивоварня Г. Город» (РФ) | «Пивоварня … Страна» (импорт)
+    const ru = rest.match(/^(.+?)\s+Г\.\s+.+$/);
+    const brewery = (ru ? ru[1]! : rest).trim();
+    const title = `${brewery} ${titlePart}`.replace(/\s+/g, " ").trim();
+    const extId = title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, "-").replace(/^-|-$/g, "");
+    if (!extId) continue;
+    out.push({ extId, title, price: parseInt(m[4]!, 10), volumeMl: 1000, format: "draft" });
+  }
+  return out;
+}

@@ -7,18 +7,31 @@
 import { recordListing, stats } from "@beer-log/store";
 import {
   parseWoocommerce, parseBitrixCatalog, parseStorebeerPage, parseTelegramTapList,
-  parseChannelHtml, NONBEER, looksLikeBeerLine, type ShopItem,
+  parseTaplinkTapList, parseChannelHtml, NONBEER, looksLikeBeerLine, type ShopItem,
 } from "@beer-log/parsers";
 import { buildMatcher } from "./catalog-matcher.ts";
 import type { Database } from "bun:sqlite";
 
-export type ShopPlatform = "woocommerce" | "bitrix" | "custom-json" | "telegram" | "prose";
+export type ShopPlatform = "woocommerce" | "bitrix" | "custom-json" | "telegram" | "prose" | "taplink";
+
+/** Точка сети (taplink): свой seller-ключ + URL тап-листа (модель «сеть↔точка», вариант B). */
+export interface ShopVenue {
+  slug: string;
+  seller: string;        // ключ листинга на точку: `<shopId>/<slug>` (напр. beermug-nn/gagarina-118)
+  addr: string;
+  url: string;           // per-venue URL тап-листа
+  coords?: [number, number] | null;
+}
 
 /** Конфиг магазина для движка — кладётся в shops.json (`ingestConfig`). */
 export interface ShopIngestConfig {
   platform: ShopPlatform;
-  seller: string;
-  /** префикс id листинга: `${idPrefix}-${extId}-${date}` (kb/pk/sb/rbs/vc) */
+  seller?: string;       // одно-продавцовые платформы; у taplink-сети seller — на точку (venues[])
+  /** seller на точку: движок гоняет ингест по каждой venue с её seller+url (модель B) */
+  sellerScope?: "venue";
+  venues?: ShopVenue[];
+  ageGate?: boolean;     // taplink: тап-лист за JS-оверлеем (на GET не влияет — справочно)
+  /** префикс id листинга: `${idPrefix}-${extId}-${date}` (kb/pk/sb/rbs/vc/bm) */
   idPrefix: string;
   // woocommerce
   endpoint?: string;
@@ -134,6 +147,17 @@ async function* prosePages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
   yield items;
 }
 
+// taplink (сеть баров): один GET на per-venue URL (cfg.sourceUrl) → тап-лист точки.
+// age-gate — JS-оверлей, контент уже в HTML; одна «страница» на точку.
+async function* taplinkPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
+  if (!cfg.sourceUrl) { console.error("! taplink: нет sourceUrl точки"); return; }
+  const html = await fetchText(cfg.sourceUrl);
+  if (html === null) return;
+  const items = parseTaplinkTapList(html);
+  if (items.length === 0) console.error(`! taplink: тап-лист не распознан в ${cfg.sourceUrl}`);
+  yield items;
+}
+
 function platformPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
   switch (cfg.platform) {
     case "woocommerce": return woocommercePages(cfg);
@@ -141,6 +165,7 @@ function platformPages(cfg: ShopIngestConfig): AsyncGenerator<ShopItem[]> {
     case "custom-json": return customJsonPages(cfg);
     case "telegram":    return telegramPages(cfg);
     case "prose":       return prosePages(cfg);
+    case "taplink":     return taplinkPages(cfg);
   }
 }
 
@@ -157,15 +182,18 @@ export async function runShopIngest(
   db: Database, cfg: ShopIngestConfig, opts: { dry: boolean; today: string },
 ): Promise<IngestResult> {
   const { dry, today } = opts;
-  // draft-источники без цены (telegram-тап-лист / prose-анонсы): NONBEER не применяем,
-  // берём позицию, если узнали пивоварню ИЛИ строка похожа на пиво.
-  const isDraft = cfg.platform === "telegram" || cfg.platform === "prose";
+  // draft-источники (тап-листы баров: telegram / prose / taplink): NONBEER не применяем,
+  // берём позицию, если узнали пивоварню ИЛИ строка похожа на пиво. taplink при этом несёт цену.
+  const isDraft = cfg.platform === "telegram" || cfg.platform === "prose" || cfg.platform === "taplink";
   const matcher = buildMatcher(db, { createAuto: !dry });
   console.log(`матчер: ${matcher.breweryCount} пивоварен / ${matcher.aliasCount} алиасов | DRY=${dry}`);
 
   const r: IngestResult = { total: 0, matchedBeer: 0, autoCreated: 0, brewOnly: 0, unmatched: 0, skipped: 0, listings: 0 };
   const sampleMatched: string[] = [], sampleUnmatched: string[] = [];
   const seen = new Set<string>();            // глобальный дедуп по extId (товар в неск. категориях/постах)
+  // venue-scope (модель B): один сорт встречается в разных точках сети — id листинга должен
+  // включать точку, иначе общие сорта затирают друг друга (один PK на все точки).
+  const venueTag = cfg.sellerScope === "venue" && cfg.seller ? `${cfg.seller.split("/").pop()}-` : "";
   let page = 0;
 
   for await (const items of platformPages(cfg)) {
@@ -186,7 +214,7 @@ export async function runShopIngest(
       else { r.unmatched++; if (sampleUnmatched.length < 20) sampleUnmatched.push(`  ${it.title.slice(0, 62)}`); }
       if (!dry) {
         recordListing(db, {
-          id: `${cfg.idPrefix}-${it.extId}-${today}`, beerId: mm.beerId, beerSlug: mm.beerSlug,
+          id: `${cfg.idPrefix}-${venueTag}${it.extId}-${today}`, beerId: mm.beerId, beerSlug: mm.beerSlug,
           beerNameRaw: it.title, price: it.price, currency: it.price != null ? "RUB" : undefined,
           volumeMl: it.volumeMl, format: it.format, seller: cfg.seller,
           sourceUrl: it.sourceUrl ?? cfg.sourceUrl, seenAt: today,

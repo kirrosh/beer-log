@@ -13,5 +13,6 @@ export type { InsalesProduct, ShopFormat } from "./shops/insales.ts";
 export {
   decodeEntities, parseVolumeMl, NONBEER, looksLikeBeerLine,
   parseWoocommerce, parseBitrixCatalog, parseStorebeerPage, parseTelegramTapList,
+  parseTaplinkTapList, extractTaplinkText,
 } from "./shops/platforms.ts";
 export type { ShopItem, BitrixOpts, StorebeerResponse } from "./shops/platforms.ts";

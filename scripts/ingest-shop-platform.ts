@@ -37,12 +37,25 @@ const db = openDb(DB_PATH);
 let registryDirty = false;
 for (const shop of targets) {
   if (!shop.ingestConfig) { console.log(`! ${shop.id}: нет ingestConfig — пропуск`); continue; }
-  console.log(`\n=== ${shop.name} (${shop.id}) · платформа ${shop.ingestConfig.platform} ===`);
-  const cfg: ShopIngestConfig = PAGES ? { ...shop.ingestConfig, maxPages: PAGES } : shop.ingestConfig;
-  const r = await runShopIngest(db, cfg, { dry: DRY, today });
+  const base = shop.ingestConfig;
+  console.log(`\n=== ${shop.name} (${shop.id}) · платформа ${base.platform} ===`);
+  const withPages = (c: ShopIngestConfig) => (PAGES ? { ...c, maxPages: PAGES } : c);
+
+  let listings = 0;
+  if (base.sellerScope === "venue") {
+    // модель «сеть↔точка» (B): один прогон на точку, seller+url из venues[]
+    for (const v of base.venues ?? []) {
+      console.log(`\n--- точка: ${v.addr} · seller=${v.seller} ---`);
+      const r = await runShopIngest(db, withPages({ ...base, seller: v.seller, sourceUrl: v.url }), { dry: DRY, today });
+      listings += r.listings;
+    }
+  } else {
+    const r = await runShopIngest(db, withPages(base), { dry: DRY, today });
+    listings = r.listings;
+  }
   // recurring/freshness (task-25): успешный реальный скан двигает дату — control-plane
   // (pipeline-status) считает давность по lastScan. DRY/смоук и пустой скан дату НЕ трогают.
-  if (!DRY && r.listings > 0) { shop.lastScan = today; shop.status = "scanned"; registryDirty = true; }
+  if (!DRY && listings > 0) { shop.lastScan = today; shop.status = "scanned"; registryDirty = true; }
 }
 if (registryDirty) await Bun.write(SHOPS_PATH, JSON.stringify(registry, null, 2) + "\n");
 db.exec("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;");
