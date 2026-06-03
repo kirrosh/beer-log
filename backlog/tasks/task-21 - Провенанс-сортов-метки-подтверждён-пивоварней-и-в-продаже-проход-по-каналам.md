@@ -161,9 +161,22 @@ magic-mess 9→4, mantra-brewery 9→3** (merge 20/8/5/3/5). + блок medovarn
   безвредно, но лучше отфильтровать) и validate-слаги, не совпадающие с существующими (validate
   тихо пропускается) → проверять `validated N`/`merged N` в выводе apply.
 
-**Итог сессии по #5 (2026-06-02): shop-only 627→459 (−168); + jaws-brewery 13→5.** Рукава: gap-research→ingest
-(kraft/crazy-brew/hops +55 канона, 3 блока), 11 merge-проходов (chibis 76→12, tarkos/white-stone/
-dieta/magic-mess/mantra/red-button/atmosphere/black-cat + kraft/crazy-brew/hops). Auto ~289→~110.
+**Батч #5 (2026-06-02 #6) — дочистка 7 мелких (последние first-pass-кандидаты).** stamm 3→0
+(латин-дубли немецких имён Groß/Straßenbahn→канон), paradox 2→0 (merge коллаб + drop чужого
+хоста), volkovskaya/black-cat → validate (genuine, остаются shop-only), labeerint/mager/big-pot
+→ review. Итог: shop-only 459→454 (−5). Все 8 first-pass-кандидатов исчерпаны.
+- **НАХОДКА — bag-slug (нужен listing-remap, НЕ merge):** один beer-row аккретит МНОГО разных
+  листингов, каждый со своим канон-матчем (labeerint: 1 slug = 6 сортов Tomato Gose v2/v3/«По
+  самые помидоры»…; big-pot/black-cat — по 2). `merge` 1:1 их не разведёт → нужен скрипт
+  remap-listings (по `beer_name_raw`→канон-slug). Заведены в needsReview как тех-долг.
+
+**Итог сессии по #5 (2026-06-02): shop-only 627→454 (−173).** Рукава: gap-research→ingest
+(kraft/crazy-brew/hops +56 канона, 4 блока: victory-art-brew/xp-brew/sorre/medovarnya),
+13 merge-проходов (chibis 76→12, tarkos 23→2, red-button 12→2, jaws 13→5, stamm/paradox/
+atmosphere →0, + white-stone/dieta/magic-mess/mantra/black-cat). Auto ~289→~105. Провенанс 98%.
+**Merge-проходный рукав исчерпан** — остаток 454 структурно genuine: validated-эксклюзивы
+(метка корректна) + needsReview (bag-slug/неоднозначные) + партиалы (нужна авторизованная
+пагинация Untappd) + medovarnya 17 mead (кандидат на drop). #5 практически закрыт по проходу.
 
 **Осталось по #5:** уже-пройденные крупные хвосты (salden-s 106, 4-brewers 64, konix 33,
 afbrew 22, panzer/odna-tonna 20, selfmade 18, bakunin/vasileostrovskaya/jaws ~12-15) — реальный
