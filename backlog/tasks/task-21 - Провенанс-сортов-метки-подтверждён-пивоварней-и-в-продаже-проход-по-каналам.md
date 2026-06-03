@@ -161,7 +161,7 @@ magic-mess 9→4, mantra-brewery 9→3** (merge 20/8/5/3/5). + блок medovarn
   безвредно, но лучше отфильтровать) и validate-слаги, не совпадающие с существующими (validate
   тихо пропускается) → проверять `validated N`/`merged N` в выводе apply.
 
-**Итог сессии по #5 (2026-06-02): shop-only 627→467 (−160).** Рукава: gap-research→ingest
+**Итог сессии по #5 (2026-06-02): shop-only 627→459 (−168); + jaws-brewery 13→5.** Рукава: gap-research→ingest
 (kraft/crazy-brew/hops +55 канона, 3 блока), 11 merge-проходов (chibis 76→12, tarkos/white-stone/
 dieta/magic-mess/mantra/red-button/atmosphere/black-cat + kraft/crazy-brew/hops). Auto ~289→~110.
 
