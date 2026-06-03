@@ -151,15 +151,26 @@ magic-mess 9→4, mantra-brewery 9→3** (merge 20/8/5/3/5). + блок medovarn
   пиво пивоварни Mantra, Magic Mess лишь соавтор → drop (не её канон). «Container bucket» (один
   shop-сорт с 15 листингами разных канон-сортов, имя-префикс «ДИЕТА/») → drop, листинги осиротеют.
 
-**Итог сессии по #5 (2026-06-02): shop-only 627→482 (−145).** Рукава: gap-research→ingest
-(kraft/crazy-brew/hops +55 канона, 3 блока), merge-проходы (chibis 76→12, tarkos/white-stone/
-dieta/magic-mess/mantra). Auto-сорта 289→138 (гигиена каталога).
+**Батч #5 (2026-06-02 #5).** Ещё 4 первых прохода: **red-button 12→2** (merge 6 + drop 4
+холодных чаёв-не-пива + validate 1; прошлый файл был alias-fix merge=1, не настоящий проход —
+такие НАДО перепроверять, «Y» в prevPass ≠ полный проход!), **atmosphere 4→0** (merge 4),
+**black-cat 4→3** (merge 1, validate 2, review 1), **red-rocket 7→7** (validate 7 НЕ применился:
+слаги в файле ≠ существующим → `validated 0`; сорта genuine retired без канон-матча). Итог
+батча: shop-only 482→467 (−15).
+- Грабли: субагент может выдать спурьёзный merge с несуществующим `from` (at-apply = no-op,
+  безвредно, но лучше отфильтровать) и validate-слаги, не совпадающие с существующими (validate
+  тихо пропускается) → проверять `validated N`/`merged N` в выводе apply.
 
-**Осталось по #5:** топ остатка — уже-пройденные крупные хвосты (salden-s 106, 4-brewers 64,
-konix 33, afbrew 22, panzer/odna-tonna 20, selfmade 18): первый проход снят (#1) — остаток
-genuine, не churn'ить. Следующие ПЕРВЫЕ проходы (untappd ok, нет promotions/<slug>.json) —
-по убыванию из pipeline-status: jaws-brewery (13)*, red-button (12), vasileostrovskaya (12)…
-(* проверять prevPass). Гейт review — накопленные needsReview человеку (chibis +6, magic-mess
-+4, afbrew +1, по 2 у tarkos/white-stone/dieta/mantra). medovarnya: 17 mead-листингов остаются
-shop-only при blocked-пивоварне — кандидат на отдельный drop мёд-сортов.
+**Итог сессии по #5 (2026-06-02): shop-only 627→467 (−160).** Рукава: gap-research→ingest
+(kraft/crazy-brew/hops +55 канона, 3 блока), 11 merge-проходов (chibis 76→12, tarkos/white-stone/
+dieta/magic-mess/mantra/red-button/atmosphere/black-cat + kraft/crazy-brew/hops). Auto ~289→~110.
+
+**Осталось по #5:** уже-пройденные крупные хвосты (salden-s 106, 4-brewers 64, konix 33,
+afbrew 22, panzer/odna-tonna 20, selfmade 18, bakunin/vasileostrovskaya/jaws ~12-15) — реальный
+merge-проход снят, остаток genuine (validated-эксклюзивы) → не churn'ить. ВАЖНО: «prevPass=Y»
+проверять на содержание — alias-fix-файлы (merge≤1) = проход НЕ делался. Гейт review — needsReview
+человеку (chibis +6, magic-mess +4, +1 у black-cat/afbrew/red-button, по 2 у tarkos/white-stone/
+dieta/mantra). medovarnya: 17 mead-листингов при blocked — кандидат на drop мёд-сортов. Партиалы
+(4-brewers/konix/selfmade/black-cat = `ok-untappd-partial`) — недобор канона требует авторизованной
+пагинации Untappd; часть их shop-only схлопнётся после до-ингеста.
 <!-- SECTION:NOTES:END -->
