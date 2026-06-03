@@ -42,7 +42,7 @@ const db = new Database(DB_PATH, { readonly: true });
 type LinkRow = { kind: string; url: string; title?: string };
 
 const breweries = (db.query(
-  "SELECT id, name, slug, city, country, segment, aliases, links FROM breweries ORDER BY name",
+  "SELECT id, name, slug, city, country, segment, aliases, links, image_url FROM breweries ORDER BY name",
 ).all() as Record<string, string>[]).map((r) => ({
   slug: r.slug,
   name: r.name,
@@ -51,6 +51,8 @@ const breweries = (db.query(
   segment: r.segment ?? "unknown",
   aliases: JSON.parse(r.aliases || "[]") as string[],
   links: JSON.parse(r.links || "[]") as LinkRow[],
+  // офиц. логотип (task-15): локальный путь рехостнутого файла или null
+  imageUrl: r.image_url ?? null,
 }));
 const brewerySlugById = new Map(
   (db.query("SELECT id, slug FROM breweries").all() as { id: string; slug: string }[]).map((r) => [r.id, r.slug]),
@@ -60,7 +62,7 @@ const brewerySlugById = new Map(
 type SrcRow = { excerpt: string | null; source_url: string };
 const beersAll = (db.query(
   `SELECT id, name, slug, brewery_id, brewery_name_raw, style_slug, style_name, style_category,
-          abv, ibu, status, aliases
+          abv, ibu, status, aliases, image_url
    FROM beers ORDER BY name`,
 ).all() as Record<string, unknown>[]).map((r) => {
   const srcs = db.query("SELECT excerpt, source_url FROM beer_sources WHERE beer_id = ?")
@@ -131,6 +133,8 @@ const beersAll = (db.query(
     abv: (r.abv as number) ?? null,
     ibu: (r.ibu as number) ?? null,
     status: (r.status as string) ?? "auto",
+    // офиц. этикетка (task-15): локальный путь рехостнутого файла или null
+    imageUrl: (r.image_url as string) ?? null,
     description,
     channels,
     sources: [...new Set(srcs.map((s) => s.source_url))],
@@ -192,6 +196,9 @@ const snapshot = {
     // провенанс (task-21): подтверждён офиц. каналом пивоварни / только в продаже у магазина
     beersVerifiedByBrewery: beers.filter((b) => b.channels.length).length,
     beersShopOnly: beers.filter((b) => b.demand && !b.channels.length).length,
+    // покрытие офиц. изображениями (task-15)
+    breweriesWithImage: breweriesOut.filter((b) => b.imageUrl).length,
+    beersWithImage: beers.filter((b) => b.imageUrl).length,
   },
   breweries: breweriesOut,
   beers,

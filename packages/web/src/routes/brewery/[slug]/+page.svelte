@@ -2,6 +2,7 @@
   import { catMeta, LINK_LABEL } from "$lib/styles";
   import { plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, CHANNEL_LABEL, CHANNEL_ORDER } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
+  import Thumb from "$lib/Thumb.svelte";
   let { data } = $props();
   const brewery = $derived(data.brewery);
   const beers = $derived(data.beers);
@@ -23,7 +24,10 @@
 
 <article class="wrap detail">
   <header class="head">
-    <h1>{brewery.name}</h1>
+    <div class="htop">
+      <Thumb src={brewery.imageUrl} name={brewery.name} size={64} shape="round" />
+      <h1>{brewery.name}</h1>
+    </div>
     {#if brewery.aliases.length}<div class="al">{brewery.aliases.join(" · ")}</div>{/if}
     <div class="meta">
       {#if brewery.city}<span class="city">{brewery.city}</span><span class="sep">·</span>{/if}
@@ -86,6 +90,7 @@
       <div class="rows">
         {#each beers as b}
           <a class="row" href={`/beer/${b.slug}`} style="--c: {catMeta(b.style?.category).color}">
+            <Thumb src={b.imageUrl} name={b.name} size={34} shape="rounded" />
             <span class="nm">{b.name}</span>
             <span class="ch"><Chip category={b.style?.category} /></span>
             <span class="st">{b.style?.name ?? "—"}</span>
@@ -103,6 +108,7 @@
 <style>
   .detail { padding-top: 26px; max-width: 900px; }
   .head { padding-bottom: 18px; }
+  .htop { display: flex; align-items: center; gap: 16px; }
   h1 { font-size: 44px; font-weight: 600; line-height: 1.05; }
   .al { color: var(--ink-faint); font-size: 13.5px; margin-top: 7px; }
   .meta { display: flex; align-items: center; gap: 9px; margin-top: 13px; font-size: 14px; color: var(--ink-dim); }
@@ -143,7 +149,7 @@
   .block h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.8px; color: var(--ink-faint); margin-bottom: 12px; }
   .block h2 .mono { color: var(--ink-dim); }
   .rows { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--bg-elev); }
-  .row { display: grid; grid-template-columns: minmax(140px, 1.7fr) auto minmax(90px, 1.1fr) 62px 70px; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); border-left: 2px solid transparent; transition: background 0.13s, border-color 0.13s; }
+  .row { display: grid; grid-template-columns: 34px minmax(140px, 1.7fr) auto minmax(90px, 1.1fr) 62px 70px; align-items: center; gap: 14px; padding: 12px 16px; border-bottom: 1px solid var(--line); border-left: 2px solid transparent; transition: background 0.13s, border-color 0.13s; }
   .row:last-child { border-bottom: none; }
   .row:hover { background: var(--bg-elev-2); border-left-color: var(--c); }
   .row .nm { font-weight: 600; }
@@ -152,5 +158,5 @@
   .row .ib { color: var(--ink-faint); font-size: 12px; text-align: right; }
   .none { color: var(--ink-faint); } .none a { color: var(--amber); }
 
-  @media (max-width: 640px) { h1 { font-size: 34px; } .row { grid-template-columns: 1fr auto 60px; } .row .st, .row .ib { display: none; } }
+  @media (max-width: 640px) { h1 { font-size: 34px; } .row { grid-template-columns: 34px 1fr auto 60px; } .row .st, .row .ib { display: none; } }
 </style>

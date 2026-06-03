@@ -54,6 +54,8 @@ export interface Brewery {
   /** крафт vs мейнстрим — определяет фокус монетизации */
   segment: "craft" | "mainstream" | "unknown";
   links: SourceRef[];
+  /** офиц. логотип пивоварни — локальный путь рехостнутого файла (task-15), напр. /img/brewery/<slug>.jpg */
+  imageUrl?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -70,6 +72,8 @@ export interface Beer {
   description?: string;
   aliases: string[];
   sources: SourceRef[];
+  /** офиц. этикетка/банка сорта — локальный путь рехостнутого файла (task-15), напр. /img/beer/<...>.jpg */
+  imageUrl?: string;
   /** статус модерации: почти весь ingest авто, человек валидирует */
   status: "auto" | "validated" | "rejected";
   createdAt: string;

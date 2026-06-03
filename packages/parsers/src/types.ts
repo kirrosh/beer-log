@@ -14,6 +14,11 @@ export interface ParseResult {
    * источник счётчик не отдаёт.
    */
   totalAvailable?: number | null;
+  /**
+   * Офиц. логотип сущности-источника (если источник его отдаёт), напр. логотип пивоварни на
+   * Untappd. Абсолютный URL картинки. Для рехостинга изображений (task-15). null/undefined — нет.
+   */
+  imageUrl?: string | null;
 }
 
 export interface ParserHealth {

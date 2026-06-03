@@ -16,6 +16,8 @@ export interface UntappdBeer {
   ibu: number | null;
   /** описание из карточки (без «Read More»-хвоста), может отсутствовать */
   description: string | null;
+  /** абсолютный URL этикетки/банки (assets.untappd.com/site/beer_logos/…), для рехостинга (task-15) */
+  imageUrl: string | null;
 }
 
 const BASE = "https://untappd.com";
@@ -87,6 +89,16 @@ export function parseUntappdBeerTotal(html: string): number | null {
 }
 
 /**
+ * Извлекает абсолютный URL логотипа пивоварни из шапки профиля Untappd
+ * (`assets.untappd.com/site/brewery_logos/brewery-<id>…`). Для рехостинга изображений (task-15).
+ * `null`, если логотипа нет (разметка поплыла / у пивоварни дефолтный плейсхолдер).
+ */
+export function parseUntappdBreweryLogo(html: string): string | null {
+  const m = /https?:\/\/[^"'\s]*\/site\/brewery_logos\/brewery-\d+[^"'\s]+/.exec(html);
+  return m ? m[0] : null;
+}
+
+/**
  * Парсит HTML страницы списка сортов пивоварни Untappd (`/beer`).
  * Чистая функция (без сети) — основа для теста/самопроверки разметки.
  */
@@ -106,6 +118,8 @@ export function parseUntappdBeerList(html: string): UntappdBeer[] {
     const descRaw = /class="desc[^"]*"[^>]*>([\s\S]*?)<a[^>]*class="[^"]*read-more/.exec(blk)?.[1]
       ?? /class="desc[^"]*"[^>]*>([\s\S]*?)<\/div>/.exec(blk)?.[1];
     const description = descRaw ? unescapeHtml(descRaw) || null : null;
+    // этикетка/банка из блока `<a class="label"><img src="…/beer_logos/beer-<bid>…">` (task-15)
+    const imgM = /src="(https?:\/\/[^"]*\/beer_logos\/[^"]+)"/.exec(blk)?.[1] ?? null;
     out.push({
       bid,
       name: unescapeHtml(nameM[2] ?? ""),
@@ -114,6 +128,7 @@ export function parseUntappdBeerList(html: string): UntappdBeer[] {
       abv,
       ibu,
       description,
+      imageUrl: imgM,
     });
   }
   return out;
@@ -269,10 +284,13 @@ export const untappdWebParser: Parser = {
         abv: b.abv ?? undefined,
         ibu: b.ibu ?? undefined,
         style: { slug: st.slug, name: b.styleRaw, category: st.category, raw: b.styleRaw },
+        imageUrl: b.imageUrl ?? undefined,
       };
     });
     const listings: PriceListing[] = [];
-    return { source, beers, listings, unparsed: [], fetchedAt, totalAvailable };
+    // логотип пивоварни — из шапки первой (SSR) страницы (task-15)
+    const imageUrl = parseUntappdBreweryLogo(html);
+    return { source, beers, listings, unparsed: [], fetchedAt, totalAvailable, imageUrl };
   },
 
   async healthCheck(target: string): Promise<ParserHealth> {

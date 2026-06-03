@@ -11,7 +11,10 @@ packages/web/build/
 bun.lockb
 # parser run artifacts
 data/raw-snapshots/
-# секреты (cookie авторизованной сессии Untappd для пагинации — task-16)
+# рехостнутые изображения (task-15): лежат в S3 (Yandex Object Storage), в БД image_url = публичный
+# URL; static/img — лишь локальный фоллбэк/кеш заливки, в git не нужен
+packages/web/static/img/
+# секреты (cookie сессии Untappd + ключи S3-хранилища) — gitignored ваулт проекта
 data/.secrets/
 .obsidian/workspace*
 # sqlite WAL/shm (временные, сворачиваются чекпоинтом)

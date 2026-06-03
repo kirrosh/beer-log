@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS breweries (
   aliases TEXT DEFAULT '[]',
   -- офиц. ссылки пивоварни (SourceRef[] в JSON): сайт, Telegram, VK, Untappd
   links TEXT DEFAULT '[]',
+  -- офиц. логотип: локальный путь рехостнутого файла (task-15), напр. /img/brewery/<slug>.jpg
+  image_url TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -39,6 +41,8 @@ CREATE TABLE IF NOT EXISTS beers (
   ibu REAL,
   status TEXT NOT NULL DEFAULT 'auto',
   aliases TEXT DEFAULT '[]',
+  -- офиц. этикетка/банка: локальный путь рехостнутого файла (task-15)
+  image_url TEXT,
   created_at TEXT NOT NULL,
   updated_at TEXT NOT NULL
 );
@@ -90,6 +94,8 @@ CREATE INDEX IF NOT EXISTS snap_key ON price_snapshots(item_key, seen_at);
 
   // эволюция схемы для уже созданных БД: добавить недостающие колонки
   addColumnIfMissing(db, "breweries", "links", "TEXT DEFAULT '[]'");
+  addColumnIfMissing(db, "breweries", "image_url", "TEXT");
+  addColumnIfMissing(db, "beers", "image_url", "TEXT");
 }
 
 /** Идемпотентно добавить колонку, если её ещё нет (для старых БД). */

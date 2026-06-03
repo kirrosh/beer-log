@@ -24,6 +24,8 @@ export interface BreweryDemand { reach: number; listings: number; listedBeers: n
 export interface Brewery {
   slug: string; name: string; city: string | null; country: string;
   segment: string; aliases: string[]; links: Link[]; beerCount: number;
+  /** офиц. логотип — локальный путь рехостнутого файла (task-15) или null */
+  imageUrl: string | null;
   demand: BreweryDemand | null;
 }
 export interface Style { slug: string; name: string | null; category: string }
@@ -32,6 +34,8 @@ export type SourceChannel = "untappd" | "telegram" | "vk" | "website";
 export interface Beer {
   slug: string; name: string; brewerySlug: string | null; breweryName: string | null;
   style: Style | null; abv: number | null; ibu: number | null; status: string;
+  /** офиц. этикетка — локальный путь рехостнутого файла (task-15) или null */
+  imageUrl: string | null;
   description: string | null; channels: SourceChannel[]; sources: string[]; aliases: string[];
   demand: BeerDemand | null;
 }
@@ -191,3 +195,18 @@ export const confirmationLevel = (b: Beer): number => b.channels.length;
 export const isCrossConfirmed = (b: Beer): boolean => b.channels.length >= 2;
 /** Каналы сорта человекочитаемо в стабильном порядке: «Untappd · Telegram». */
 export const channelLabels = (b: Beer): string => orderedChannels(b).map((c) => CHANNEL_LABEL[c]).join(" · ");
+
+// ── Изображения (task-15): рехостнутые логотипы/этикетки + фоллбэк-монограмма ──
+/** Инициалы для фоллбэк-плашки, когда офиц. изображения нет: 1–2 буквы из имени. */
+export function monogram(name: string): string {
+  const words = name.trim().split(/[\s·—-]+/).filter(Boolean);
+  if (!words.length) return "?";
+  if (words.length === 1) return words[0]!.slice(0, 2).toUpperCase();
+  return (words[0]![0]! + words[1]![0]!).toUpperCase();
+}
+/** Детерминированный оттенок фоллбэк-плашки по имени (стабилен между сборками). */
+export function tintHue(name: string): number {
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) % 360;
+  return h;
+}

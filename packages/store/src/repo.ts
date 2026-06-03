@@ -20,6 +20,8 @@ export interface BreweryInput {
   segment?: "craft" | "mainstream" | "unknown";
   aliases?: string[];
   links?: BreweryLink[];
+  /** офиц. логотип — локальный путь рехостнутого файла (task-15) */
+  imageUrl?: string;
   /** при апдейте сделать input.name каноническим именем (старое уедет в алиасы) */
   canonicalName?: boolean;
 }
@@ -58,25 +60,30 @@ export function upsertBrewery(db: DB, input: BreweryInput): string {
          name = ?,
          city = COALESCE(city, ?),
          segment = CASE WHEN segment = 'unknown' THEN ? ELSE segment END,
-         aliases = ?, links = ?, updated_at = ?
+         aliases = ?, links = ?, image_url = COALESCE(image_url, ?), updated_at = ?
        WHERE id = ?`,
     ).run(
       name, input.city ?? null, input.segment ?? "unknown",
-      JSON.stringify([...aliases]), JSON.stringify(links), ts, existing.id,
+      JSON.stringify([...aliases]), JSON.stringify(links), input.imageUrl ?? null, ts, existing.id,
     );
     return existing.id;
   }
 
   const id = rid("br");
   db.query(
-    `INSERT INTO breweries (id,name,slug,city,country,segment,aliases,links,created_at,updated_at)
-     VALUES (?,?,?,?,?,?,?,?,?,?)`,
+    `INSERT INTO breweries (id,name,slug,city,country,segment,aliases,links,image_url,created_at,updated_at)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     id, input.name, slug, input.city ?? null, input.country ?? "RU",
     input.segment ?? "unknown", JSON.stringify(input.aliases ?? []),
-    JSON.stringify(input.links ?? []), ts, ts,
+    JSON.stringify(input.links ?? []), input.imageUrl ?? null, ts, ts,
   );
   return id;
+}
+
+/** Установить/обновить логотип пивоварни (рехостнутый локальный путь, task-15). */
+export function setBreweryImage(db: DB, breweryId: string, imageUrl: string): void {
+  db.query("UPDATE breweries SET image_url = ?, updated_at = ? WHERE id = ?").run(imageUrl, now(), breweryId);
 }
 
 export interface BeerInput {
@@ -89,6 +96,8 @@ export interface BeerInput {
   ibu?: number;
   status?: string;
   aliases?: string[];
+  /** офиц. этикетка/банка — локальный путь рехостнутого файла (task-15) */
+  imageUrl?: string;
   source?: { url: string; excerpt?: string; seenAt: string };
 }
 
@@ -113,24 +122,25 @@ export function upsertBeer(db: DB, b: BeerInput): string {
          style_category = COALESCE(style_category, ?),
          abv = COALESCE(abv, ?), ibu = COALESCE(ibu, ?),
          brewery_name_raw = COALESCE(brewery_name_raw, ?),
+         image_url = COALESCE(image_url, ?),
          aliases = ?, updated_at = ?
        WHERE id = ?`,
     ).run(
       b.style?.slug ?? null, b.style?.name ?? null, b.style?.category ?? null,
-      b.abv ?? null, b.ibu ?? null, b.breweryNameRaw ?? null,
+      b.abv ?? null, b.ibu ?? null, b.breweryNameRaw ?? null, b.imageUrl ?? null,
       JSON.stringify([...aliases]), ts, id,
     );
   } else {
     id = rid("be");
     db.query(
       `INSERT INTO beers
-         (id,name,slug,brewery_id,brewery_name_raw,style_slug,style_name,style_category,abv,ibu,status,aliases,created_at,updated_at)
-       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+         (id,name,slug,brewery_id,brewery_name_raw,style_slug,style_name,style_category,abv,ibu,status,aliases,image_url,created_at,updated_at)
+       VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
     ).run(
       id, b.name, slug, b.breweryId ?? null, b.breweryNameRaw ?? null,
       b.style?.slug ?? null, b.style?.name ?? null, b.style?.category ?? null,
       b.abv ?? null, b.ibu ?? null, b.status ?? "auto",
-      JSON.stringify(b.aliases ?? []), ts, ts,
+      JSON.stringify(b.aliases ?? []), b.imageUrl ?? null, ts, ts,
     );
   }
 
@@ -140,6 +150,11 @@ export function upsertBeer(db: DB, b: BeerInput): string {
     ).run(id, b.source.url, b.source.excerpt ?? null, b.source.seenAt);
   }
   return id;
+}
+
+/** Установить/обновить этикетку сорта (рехостнутый локальный путь, task-15). */
+export function setBeerImage(db: DB, beerId: string, imageUrl: string): void {
+  db.query("UPDATE beers SET image_url = ?, updated_at = ? WHERE id = ?").run(imageUrl, now(), beerId);
 }
 
 export function upsertSource(

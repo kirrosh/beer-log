@@ -2,6 +2,7 @@
   import { beers, breweries, counts, styleDistribution, cities, beersOf, verifiedByBrewery, inShops } from "$lib/catalog";
   import { catMeta } from "$lib/styles";
   import Chip from "$lib/Chip.svelte";
+  import Thumb from "$lib/Thumb.svelte";
 
   type View = "beers" | "breweries";
   let view = $state<View>("beers");
@@ -160,6 +161,7 @@
     <div class="rows beers">
       {#each filteredBeers as b, i (b.slug + (b.brewerySlug ?? ""))}
         <a class="row beer" href={b.brewerySlug ? `/beer/${b.slug}` : "#"} style="--c: {catMeta(b.style?.category).color}; animation-delay: {Math.min(i, 28) * 16}ms">
+          <Thumb src={b.imageUrl} name={b.name} size={32} shape="rounded" />
           <span class="nm">{b.name}</span>
           <span class="br">{b.breweryName ?? "—"}</span>
           <span class="ch"><Chip category={b.style?.category} /></span>
@@ -175,6 +177,7 @@
     <div class="rows brews">
       {#each filteredBreweries as b, i (b.slug)}
         <a class="row brew" href={`/brewery/${b.slug}`} style="animation-delay: {Math.min(i, 28) * 16}ms">
+          <Thumb src={b.imageUrl} name={b.name} size={36} shape="round" />
           <span class="nm">{b.name}</span>
           <span class="cy">{b.city ?? "—"}</span>
           <span class="cnt mono">{b.beerCount}<i>сорт.</i></span>
@@ -238,7 +241,7 @@
   .row:hover { background: var(--bg-elev-2); border-left-color: var(--c, var(--amber)); }
   .row .nm { font-weight: 600; font-size: 15px; }
 
-  .beer { grid-template-columns: minmax(140px, 1.6fr) minmax(110px, 1fr) auto minmax(90px, 1.2fr) 62px 70px 10px; }
+  .beer { grid-template-columns: 32px minmax(140px, 1.6fr) minmax(110px, 1fr) auto minmax(90px, 1.2fr) 62px 70px 10px; }
   .beer .br { color: var(--ink-dim); font-size: 13.5px; }
   .beer .st { color: var(--ink-faint); font-size: 12.5px; }
   .beer .ab { color: var(--ink); font-size: 13.5px; text-align: right; }
@@ -246,16 +249,16 @@
   .beer .sd { width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint); opacity: 0.5; justify-self: center; }
   .beer .sd.val { background: var(--c-specialty); opacity: 1; box-shadow: 0 0 7px color-mix(in srgb, var(--c-specialty) 60%, transparent); }
 
-  .brew { grid-template-columns: minmax(160px, 2fr) minmax(120px, 1.4fr) 80px auto; }
+  .brew { grid-template-columns: 36px minmax(160px, 2fr) minmax(120px, 1.4fr) 80px auto; }
   .brew .cy { color: var(--ink-dim); font-size: 13.5px; }
   .brew .cnt { color: var(--ink); font-size: 14px; } .brew .cnt i { color: var(--ink-faint); font-style: normal; font-size: 11px; margin-left: 4px; }
   .brew .lk { display: flex; gap: 5px; justify-content: flex-end; }
   .badge { font-size: 10.5px; letter-spacing: 0.4px; color: var(--ink-dim); border: 1px solid var(--line-strong); border-radius: 4px; padding: 1px 6px; text-transform: uppercase; }
 
   @media (max-width: 720px) {
-    .beer { grid-template-columns: 1fr auto 60px; }
+    .beer { grid-template-columns: 32px 1fr auto 60px; }
     .beer .br, .beer .st, .beer .ib { display: none; }
-    .brew { grid-template-columns: 1fr auto auto; }
+    .brew { grid-template-columns: 36px 1fr auto auto; }
   }
 
   .empty { padding: 40px; text-align: center; color: var(--ink-faint); }

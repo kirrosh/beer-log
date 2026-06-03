@@ -1,10 +1,10 @@
 ---
 id: task-15
 title: Офиц. изображения пивоварен и сортов (лого/этикетки)
-status: To Do
+status: In Progress
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 16:10'
+updated_date: '2026-06-03 10:45'
 labels:
   - catalog
   - web
@@ -33,12 +33,54 @@ priority: medium
 
 ## Acceptance Criteria
 
-- [ ] Решён способ (ссылки vs рехостинг) с учётом копирайта
-- [ ] Колонки image_url в моделях/БД + экспорт в снапшот витрины
-- [ ] Витрина: лого на карточке пивоварни, картинка на карточке сорта (с фоллбэком)
+- [x] Решён способ (ссылки vs рехостинг) с учётом копирайта
+- [x] Колонки image_url в моделях/БД + экспорт в снапшот витрины
+- [x] Витрина: лого на карточке пивоварни, картинка на карточке сорта (с фоллбэком)
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 task-19 закрыта (2026-06-01): первичная аудитория = конечный потребитель → изображения (лого/этикетки) поднялись в важности (consumer-facing мета), приоритет low→medium. Подход — ссылки на офиц. источники, без рехостинга (копирайт).
+
+**Реализация (2026-06-03).** Способ пересмотрен Кириллом: **рехостинг** — качаем картинки к себе в
+`packages/web/static/img/{brewery,beer}/`, в БД `image_url` = локальный путь `/img/...`. Надёжнее хотлинка.
+- Слой данных: `models.ts` (Brewery/Beer.imageUrl), `db.ts` (колонки `breweries.image_url`, `beers.image_url`
+  + `addColumnIfMissing`), `repo.ts` (входы + сеттеры `setBreweryImage`/`setBeerImage`).
+- Экспорт: `export-catalog.ts` отдаёт `imageUrl` + счётчики `counts.breweriesWithImage`/`beersWithImage`.
+- Витрина: общий компонент `Thumb.svelte` (img + onerror-фоллбэк на монограмму с детерминированным оттенком).
+  Подключён: карточка пивоварни (лого 64px), карточка сорта (этикетка 104px), списки на главной и
+  странице пивоварни, блок «Ещё у пивоварни». Без картинки — аккуратная монограмма-плашка.
+- Наполнение: `scripts/enrich-images.ts` **переиспользует боевой парсер** `untappdWebParser.parse(url, {paginate})`
+  (вместо своего HTML-парсинга): парсер расширен — `UntappdBeer.imageUrl` (этикетка `beer_logos/beer-<bid>`),
+  `parseUntappdBreweryLogo()` (логотип `brewery_logos/brewery-<id>`), `ParseResult.imageUrl`. Так подключилась
+  готовая пагинация `more_beer` за логин-гейтом (task-16, нужна cookie) → все сорта, не ~25. Этикетки матчатся
+  по имени `nameSimilarity ≥ 0.85`, качаются к себе. Анти-бан: парсер джиттерит между страницами, скрипт —
+  между пивоварнями; резюмируемо, `--top/--slugs/--force/--no-paginate/--dry`.
+
+**Прогон 2026-06-03 (с пагинацией):** топ-5 по охвату (4 Brewers 618, Salden's 718, AF Brew 307, Konix 233,
+DIETA 180) → **5 логотипов + 2087 этикеток, ~33 МБ**. Визуально проверено в браузере: логотипы на карточках/в
+списках, этикетки на карточках сорта и в списках, фоллбэк-монограмма (детерминированный оттенок) для остального.
+Полный прогон ~240 оставшихся пивоварен — отложен (решение Кирилла «потом»).
+
+**Хранилище — S3 (решение Кирилла 2026-06-03).** Картинки НЕ в git: лежат в **Yandex Object Storage**
+(S3-совместимое), в БД `image_url` = публичный URL объекта. `static/img/` — в `.gitignore` (лишь локальный
+фоллбэк/кеш). Реализация:
+- `scripts/lib/images-store.ts` — `putImage(key, bytes, ct)` через нативный `Bun.S3Client` (ACL public-read);
+  конфиг `data/.secrets/s3.json` (ваулт, gitignored). Без конфига — деградирует в запись `static/img` (дев).
+- `scripts/enrich-images.ts` заливает прямо в хранилище (S3 если настроен, иначе локально).
+- `scripts/migrate-images-to-s3.ts` — перенос уже залитых локально 2092 файлов в бакет + апдейт `image_url`
+  (`--dry`/`--prune`). Настройка бакета/ключей — `data/.secrets/README.md`.
+
+**S3 поднят и проверен (2026-06-03, через `yc`/`aws` CLI Кирилла):**
+- Сервисный аккаунт `beerlog-img` (`ajegbi4pptgfhv5sdrf1`) + роль `storage.editor` на папке `your-folder-id`.
+- Бакет `beerlog-img-b1gs3ofg` (storage class STANDARD, без bucket-wide public — доступ через per-object ACL `public-read`).
+- Статический ключ → `data/.secrets/s3.json` (gitignored ваулт). Публичный URL: `https://beerlog-img-b1gs3ofg.storage.yandexcloud.net/<key>`.
+- Мигрированы все 2092 локальных файла в бакет, `image_url` в БД → S3-URL, `static/img` удалён.
+- Проверено: анонимный GET → HTTP 200 image/jpeg (ACL `AllUsers READ`); в браузере логотипы/этикетки грузятся с бакета.
+
+**Ограничения / на будущее:**
+- Пагинация требует валидной cookie сессии Untappd (`data/.secrets/untappd-cookie.txt`); без неё ~25/пивоварню.
+- Источник этикеток — только Untappd. Идея Кирилла: для самых популярных сортов искать изображение в Google
+  отдельным алгоритмом (не реализовано).
+- Полный прогон ~240 оставшихся пивоварен — после настройки S3 (чтобы сразу в бакет, не локально).
 <!-- SECTION:NOTES:END -->

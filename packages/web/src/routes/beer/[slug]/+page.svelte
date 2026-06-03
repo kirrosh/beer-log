@@ -3,6 +3,7 @@
   import { fmtPrice, plur, sellerLabel, sellerUrl, SELLER_KIND_LABEL, formatLabel,
     channelLabels, beerConfidence, confirmationLevel } from "$lib/catalog";
   import Chip from "$lib/Chip.svelte";
+  import Thumb from "$lib/Thumb.svelte";
   let { data } = $props();
   const beer = $derived(data.beer);
   const brewery = $derived(data.brewery);
@@ -30,12 +31,15 @@
 
   <header class="head">
     <div class="accent"></div>
-    <h1>{beer.name}</h1>
-    {#if beer.aliases.length}<div class="al">{beer.aliases.join(" · ")}</div>{/if}
-    <div class="styline">
-      <Chip category={beer.style?.category} />
-      {#if beer.style?.name}<span class="sn">{beer.style.name}</span>{/if}
+    <div class="htext">
+      <h1>{beer.name}</h1>
+      {#if beer.aliases.length}<div class="al">{beer.aliases.join(" · ")}</div>{/if}
+      <div class="styline">
+        <Chip category={beer.style?.category} />
+        {#if beer.style?.name}<span class="sn">{beer.style.name}</span>{/if}
+      </div>
     </div>
+    <div class="label"><Thumb src={beer.imageUrl} name={beer.name} size={104} shape="rounded" /></div>
   </header>
 
   <div class="cells">
@@ -104,6 +108,7 @@
       <div class="sib">
         {#each siblings as s}
           <a class="sibrow" href={`/beer/${s.slug}`} style="--c: {catMeta(s.style?.category).color}">
+            <Thumb src={s.imageUrl} name={s.name} size={30} shape="rounded" />
             <span class="sname">{s.name}</span>
             <Chip category={s.style?.category} />
             <span class="sabv mono">{s.abv != null ? `${s.abv.toFixed(1)}%` : "—"}</span>
@@ -120,7 +125,9 @@
   .crumb a { color: var(--amber); } .crumb a:hover { text-decoration: underline; }
   .crumb .dot { color: var(--ink-faint); } .crumb .city { color: var(--ink-faint); }
 
-  .head { position: relative; padding: 18px 0 22px; }
+  .head { position: relative; padding: 18px 0 22px; display: flex; align-items: flex-start; gap: 20px; }
+  .htext { flex: 1 1 auto; min-width: 0; }
+  .label { flex: 0 0 auto; margin-top: 2px; }
   .accent { position: absolute; left: -22px; top: 22px; width: 4px; height: 46px; background: var(--c); border-radius: 4px; box-shadow: 0 0 16px color-mix(in srgb, var(--c) 60%, transparent); }
   h1 { font-size: 42px; font-weight: 600; line-height: 1.05; letter-spacing: 0.3px; }
   .al { color: var(--ink-faint); font-size: 13.5px; margin-top: 6px; }
@@ -176,7 +183,7 @@
   .note { margin: 11px 0 0; font-size: 12px; color: var(--ink-faint); line-height: 1.5; }
 
   .sib { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
-  .sibrow { display: grid; grid-template-columns: 1fr auto 60px; align-items: center; gap: 12px; padding: 11px 15px; border-bottom: 1px solid var(--line); border-left: 2px solid transparent; transition: background 0.13s, border-color 0.13s; }
+  .sibrow { display: grid; grid-template-columns: 30px 1fr auto 60px; align-items: center; gap: 12px; padding: 11px 15px; border-bottom: 1px solid var(--line); border-left: 2px solid transparent; transition: background 0.13s, border-color 0.13s; }
   .sibrow:last-child { border-bottom: none; }
   .sibrow:hover { background: var(--bg-elev-2); border-left-color: var(--c); }
   .sname { font-weight: 500; }
