@@ -1,0 +1,19 @@
+{
+  "_schema": {
+    "what": "Редакторский слой «топовое/рекомендуем НА ТОЧКЕ» — отдельно от личного favorite (тот про пиво вообще). Пара (venue, beerId) + бейдж + причина. Из него генерится контент-юнит «крафт-локатор» (что брать в точке сегодня). Правит агент.",
+    "fields": {
+      "venue": "seller точки из shops.json (напр. beermug-nn/gagarina-118)",
+      "beerId": "id из beers; null если вне канона → заполнить beer",
+      "beer": "человекочитаемое «Пивоварня Сорт»",
+      "badge": "must-try | hidden-gem | value | seasonal",
+      "reason": "почему рекомендуем (1 фраза)",
+      "addedAt": "дата YYYY-MM-DD"
+    },
+    "note": "Затравка ниже — редакторский отбор из тап-листа Гагарина-118 (ресёрч 2026-06-03), НЕ личные оценки пользователя. Личные вердикты — в tastings.json."
+  },
+  "highlights": [
+    { "venue": "beermug-nn/gagarina-118", "beerId": "be_c0bfcf95", "beer": "Jaws Атомная Прачечная", "badge": "must-try", "reason": "знаковая росс. American IPA, флагман тапа", "addedAt": "2026-06-03" },
+    { "venue": "beermug-nn/gagarina-118", "beerId": "be_e48309f4", "beer": "Selfmade BFG", "badge": "must-try", "reason": "плотная DIPA от топ-московского крафта", "addedAt": "2026-06-03" },
+    { "venue": "beermug-nn/gagarina-118", "beerId": "be_f2ea574c", "beer": "Глетчер Milk of Amnesia", "badge": "value", "reason": "сочный milkshake IPA, мягкий вход в стиль, ~290₽/0.5", "addedAt": "2026-06-03" }
+  ]
+}

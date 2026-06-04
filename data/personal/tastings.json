@@ -1,0 +1,27 @@
+{
+  "_schema": {
+    "what": "Личный слой: что пробовал / отзыв / избранное. Источник правды — этот файл, правит агент (UI нет). Связь с каноном по beerId, с точкой по venue (seller из shops.json).",
+    "verdict": "fire = 🔥 топ | good = 👍 норм | pass = 👎 мимо (выбор пользователя: простая шкала, не числовая)",
+    "fields": {
+      "beerId": "id из beers (catalog.sqlite); null если сорт вне канона — тогда заполнить beer вручную",
+      "beer": "человекочитаемое «Пивоварня Сорт» (для null-beerId — обязательно)",
+      "verdict": "fire | good | pass",
+      "favorite": "true = личное избранное ⭐ (поверх verdict)",
+      "wouldRepeat": "возьму ли снова (true/false) — анти-«за свои норм»",
+      "note": "опц. текст отзыва/заметки (заготовка под контент)",
+      "descriptors": "опц. теги вкуса: [\"тропик\",\"смола\",\"кислота\",\"жжёнка\"…]",
+      "venue": "опц. где пробовал — seller точки (напр. beermug-nn/gagarina-118)",
+      "format": "опц. draft | can | bottle",
+      "pricePaid": "опц. сколько заплатил, ₽",
+      "tastedAt": "дата YYYY-MM-DD",
+      "media": "опц. [пути/URL фото] — рехостить в S3 как этикетки"
+    },
+    "example": {
+      "beerId": "be_c0bfcf95", "beer": "Jaws Атомная Прачечная", "verdict": "fire",
+      "favorite": true, "wouldRepeat": true, "note": "эталонная росс. IPA, смолисто-цитрусовая",
+      "descriptors": ["смола", "цитрус", "горечь"], "venue": "beermug-nn/gagarina-118",
+      "format": "draft", "pricePaid": 410, "tastedAt": "2026-06-03", "media": []
+    }
+  },
+  "tastings": []
+}
