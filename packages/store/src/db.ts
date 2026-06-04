@@ -78,7 +78,10 @@ CREATE TABLE IF NOT EXISTS price_listings (
   source_url TEXT,
   seen_at TEXT NOT NULL,
   discounted INTEGER DEFAULT 0,
-  prev_price INTEGER
+  prev_price INTEGER,
+  -- провенанс наблюдения: self | web-photo | owner | user | shop-web (null = унаследованный веб-каталог).
+  -- Определяет уровень достоверности факта о наличии; seen_at = дата НАБЛЮДЕНИЯ (для веб-фото — дата поста).
+  source_type TEXT
 );
 
 -- история цен по позиции (для детекта скидок и аналитики спроса)
@@ -96,6 +99,7 @@ CREATE INDEX IF NOT EXISTS snap_key ON price_snapshots(item_key, seen_at);
   addColumnIfMissing(db, "breweries", "links", "TEXT DEFAULT '[]'");
   addColumnIfMissing(db, "breweries", "image_url", "TEXT");
   addColumnIfMissing(db, "beers", "image_url", "TEXT");
+  addColumnIfMissing(db, "price_listings", "source_type", "TEXT");
 }
 
 /** Идемпотентно добавить колонку, если её ещё нет (для старых БД). */

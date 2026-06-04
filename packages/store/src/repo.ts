@@ -179,6 +179,8 @@ export interface ListingInput {
   seller?: string;
   sourceUrl?: string;
   seenAt: string;
+  /** провенанс наблюдения: self|web-photo|owner|user|shop-web. См. колонку source_type. */
+  sourceType?: string;
 }
 
 /** Записать листинг + снапшот цены; детект скидки относительно прошлой цены позиции. */
@@ -212,12 +214,12 @@ export function recordListing(
 
   db.query(
     `INSERT INTO price_listings
-       (id,beer_id,beer_name_raw,price,currency,volume_ml,format,seller,source_url,seen_at,discounted,prev_price)
-     VALUES (?,?,?,?,?,?,?,?,?,?,?,?)`,
+       (id,beer_id,beer_name_raw,price,currency,volume_ml,format,seller,source_url,seen_at,discounted,prev_price,source_type)
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)`,
   ).run(
     id, l.beerId ?? null, l.beerNameRaw, l.price ?? null, l.currency ?? "RUB",
     l.volumeMl ?? null, l.format ?? null, l.seller ?? null, l.sourceUrl ?? null,
-    l.seenAt, discounted ? 1 : 0, prevPrice,
+    l.seenAt, discounted ? 1 : 0, prevPrice, l.sourceType ?? null,
   );
   return { id, discounted, prevPrice };
 }

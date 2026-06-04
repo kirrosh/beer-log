@@ -15,6 +15,7 @@
 import { openDb, recordListing, stats } from "@beer-log/store";
 import { parseVolumeMl, looksLikeBeerLine, type ShopFormat } from "@beer-log/parsers";
 import { buildMatcher } from "./lib/catalog-matcher.ts";
+import { tier, type SourceType } from "./lib/provenance.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const DRY = !!process.env.DRY;
@@ -26,17 +27,27 @@ if (!file) { console.error("Укажи JSON-файл: bun run scripts/ingest-she
 interface ShelfItem {
   brewery?: string; sort?: string; abv?: number; style?: string;
   format?: ShopFormat; price?: number; volumeMl?: number;
+  // провенанс на item (переопределяет файловый): для агрегата фото с разными датами/источниками
+  observedAt?: string; sourceType?: SourceType; sourceUrl?: string;
 }
-const raw = await Bun.file(file).json() as { venue?: string; sourceUrl?: string; items?: ShelfItem[] };
+const raw = await Bun.file(file).json() as {
+  venue?: string; sourceUrl?: string; sourceType?: SourceType; observedAt?: string; items?: ShelfItem[];
+};
 const venue = raw.venue;
 if (!venue) { console.error(`! нет поля "venue" (seller точки) в ${file}`); process.exit(1); }
-const sourceUrl = raw.sourceUrl ?? "shelf-photo";
+const fileSourceUrl = raw.sourceUrl ?? "shelf-photo";
+// провенанс по умолчанию для всего файла: источник холодильника теперь — открытое веб-фото,
+// observed_at = дата ПОСТА/съёмки (а не ингеста), иначе старьё выдаётся за свежак. См. lib/provenance.ts.
+const fileSourceType: SourceType = raw.sourceType || "web-photo";
+const fileObservedAt = raw.observedAt || today;
 const venueSlug = venue.split("/").pop()!;
 
 const db = openDb(DB_PATH);
 const matcher = buildMatcher(db, { createAuto: !DRY });
+const ft = tier({ sourceType: fileSourceType, observedAt: fileObservedAt });
 console.log(`=== Холодильник ${venue} · файл ${file} · DRY=${DRY} ===`);
 console.log(`матчер: ${matcher.breweryCount} пивоварен / ${matcher.aliasCount} алиасов`);
+console.log(`провенанс: ${fileSourceType} · наблюдение ${fileObservedAt} · tier=${ft.level} (${ft.score}) «${ft.label}»`);
 
 const seen = new Set<string>();
 let total = 0, matchedBeer = 0, autoCreated = 0, brewOnly = 0, unmatched = 0, listings = 0;
@@ -61,11 +72,13 @@ for (const it of raw.items ?? []) {
   else { unmatched++; if (sampleUnmatched.length < 20) sampleUnmatched.push(`  ${title.slice(0, 60)}`); }
 
   if (!DRY) {
+    const observedAt = it.observedAt ?? fileObservedAt;
     recordListing(db, {
-      id: `shelf-${venueSlug}-${extId}-${today}`, beerId: mm.beerId, beerSlug: mm.beerSlug,
+      id: `shelf-${venueSlug}-${extId}-${observedAt}`, beerId: mm.beerId, beerSlug: mm.beerSlug,
       beerNameRaw: title, price: it.price, currency: it.price != null ? "RUB" : undefined,
       volumeMl: it.volumeMl ?? parseVolumeMl(title), format: it.format ?? "can",
-      seller: venue, sourceUrl, seenAt: today,
+      seller: venue, sourceUrl: it.sourceUrl ?? fileSourceUrl, seenAt: observedAt,
+      sourceType: it.sourceType ?? fileSourceType,
     });
     listings++;
   }
