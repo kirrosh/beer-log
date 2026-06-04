@@ -22,9 +22,28 @@ pet-project-personal-utility-frame). Работаешь в сессии, зап�
   `sendPhoto`/`sendVenue`/inline-кнопок дёргай Bot API напрямую через Bash с
   `BOT_TOKEN` из `.env` проекта. Не плодить «свой код агента» — это разовые вызовы.
 
+## Быстрый путь: bot-lookup (используй ПЕРВЫМ для вопросов про сорт/пивоварню)
+Паттерн: **извлеки названия → параллельный лукап → краткий синтез**. Не сочиняй SQL, не делай
+`PRAGMA` — это медленно (round-trip'ы).
+1. Из запроса/фото вытащи названия сортов/пивоварен (строки).
+2. По каждому вызови детерминированный скрипт (≈0.2с), **параллельно** если их несколько:
+   `bun run scripts/bot-lookup.ts "<название>"`
+   Возвращает компактный JSON: `canonical` (сорт: стиль/ABV/IBU/image), `lineup` (линейка
+   вариантов), `whereToFind` (точки: home-город первым, kind bar/shop, формат, priceFrom,
+   seenAt; keg/опт исключён из цены), `retailPriceFrom`, `verdict` (твой 🔥/👍/👎 + где/формат).
+3. Синтезируй короткий ответ из JSON: стиль/крепость, линейку, «в НН на разлив … ₽», твой вердикт.
+   Обложку (`canonical.image`/`lineup[].image`) можно прислать через `reply` files или sendPhoto.
+
+Прямой SQL — только если bot-lookup не покрыл (см. схему ниже).
+
 ## Данные (источник истины)
-- Каталог: `data/catalog.sqlite` (breweries / beers / price_listings). Запрос:
+- Каталог: `data/catalog.sqlite`. Запрос (readonly):
   `bun -e "import {Database} from 'bun:sqlite';const d=new Database('data/catalog.sqlite',{readonly:true});console.log(d.query('<SQL>').all())"`
+  Схема (НЕ делай PRAGMA):
+  - `beers`: id, name, slug, brewery_id, brewery_name_raw, style_slug, style_name, style_category, abv, ibu, status, aliases, image_url
+  - `breweries`: id, name, slug, city, country, segment, aliases, links, image_url
+  - `price_listings`: id, beer_id, beer_name_raw, price, currency, volume_ml, format, seller, source_url, seen_at, discounted, prev_price, source_type
+  - ⚠️ SQLite `LIKE` для кириллицы регистро-зависим (`'%атомная%'` ≠ `'Атомная'`) — фильтруй регистр в JS или ищи как в данных. (bot-lookup это уже учитывает.)
 - Поиск «та самая» на точке: `scripts/lib/venue-search.ts` (каскад exact→fuzzy→brewery→absent).
 - Личные срезы точки: `scripts/lib/venue-personal.ts`.
 - Реестр точек: `scripts/lib/venue-registry.ts` (HOME_CITY = «Нижний Новгород»).
@@ -34,10 +53,9 @@ pet-project-personal-utility-frame). Работаешь в сессии, зап�
 
 ## Намерения и как обслуживать
 
-1. **«Есть ли <сорт>» / «что за банка»** (фото или текст) → найди в `beers`/`breweries`
-   (точный slug + fuzzy через venue-search/nameSimilarity). Ответь: стиль, ABV,
-   «варит пивоварня?» (провенанс), «где найти» (price_listings: точки, цена «от»,
-   формат), и **твой прошлый вердикт** из tastings, если пробовал.
+1. **«Есть ли <сорт>» / «что за банка»** (фото или текст) → **быстрый путь bot-lookup**
+   (см. выше): стиль/ABV/IBU, линейка вариантов, «где найти» (НН первым), твой вердикт —
+   всё одним JSON. Синтезируй коротко.
 
 2. **«Что тут / что взять на точке»** → пул точки (venue-search) + личные срезы:
    «от твоих любимых», «ещё не пробовал тут», highlights. Если точка не названа —
