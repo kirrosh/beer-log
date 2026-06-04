@@ -4,7 +4,7 @@ title: 'Парсеры офиц. каналов пивоварен (VK + TG), н
 status: In Progress
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-01 12:57'
+updated_date: '2026-06-04 11:13'
 labels:
   - parser
   - phase-0
@@ -12,7 +12,7 @@ labels:
 milestone: 'M3: Глубина и надёжность каталога'
 dependencies:
   - task-12
-priority: high
+priority: low
 ---
 
 ## Description
@@ -58,4 +58,6 @@ priority: high
 
 <!-- SECTION:NOTES:BEGIN -->
 TG-сторона готова: fetch-channels.ts наводится на хэндлы из discovery, ingest сортов в каталог, провенанс на записях (десятки пивоварен заингещены). НЕ сделан VK-парсер — но VK помечен «крайний» источник (Backlog.md), большинство активных каналов в TG. Остаток = VK-парсер, low. Можно дробить: TG-часть фактически Done.
+
+ПЕРЕОСМЫСЛЕНО 2026-06-04: снято с High. TG-сторона сделана. VK-остаток ЗАКРЫТЬ — VK без токена/браузера не читается (memory vk-public-paths-closed, мёртвая дорожка). Рост каталога теперь demand-driven через трек E (меню баров вскрывают недостающие пивоварни: Midnight Project, Plague, Осьминогец…), а не слепой добор всех офиц. каналов.
 <!-- SECTION:NOTES:END -->
