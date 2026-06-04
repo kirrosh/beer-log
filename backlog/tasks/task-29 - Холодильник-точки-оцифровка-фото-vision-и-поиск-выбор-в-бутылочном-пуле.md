@@ -1,21 +1,29 @@
 ---
 id: TASK-29
-title: 'Холодильник точки: оцифровка (фото→vision) + поиск/выбор в бутылочном пуле'
+title: 'ЭПИК M4: Поиск на точке (Craft Locator) — карта сценариев'
 status: In Progress
 assignee: []
 created_date: '2026-06-04 10:00'
+updated_date: '2026-06-04 12:00'
+milestone: 'M4: Поиск на точке'
 labels:
+  - epic
   - demand
   - venue
   - ux
 dependencies:
   - TASK-28
 references:
+  - vault/strategy/m4-craft-locator.md
   - scripts/ingest-shelf.ts
   - data/ingest/shelf-flow.md
   - data/personal/highlights.json
 priority: high
 ---
+
+> **Эпик-карта майлстоуна M4** (design: `vault/strategy/m4-craft-locator.md`).
+> Декомпозирован в TASK-30..36. Здесь — продуктовый контекст и каталог сценариев A-E;
+> исполнение — в дочерних задачах.
 
 ## Description
 
@@ -47,10 +55,9 @@ Substitution (B3/B5) и реверс E1 работают уже на текущ�
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [x] #1 Механизм ингеста холодильника: `scripts/ingest-shelf.ts` (фото→vision-JSON `data/discovery/shelf-<venue>.json` → `buildMatcher` → листинги `format=can/bottle`, `seller=<venue>`, id `shelf-<slug>-<extId>-<date>`, идемпотентно по дню). Поток — `data/ingest/shelf-flow.md`. Typecheck + DRY-смоук пройдены.
-- [ ] #2 Первая реальная оцифровка: фото полок Beer Mug Гагарина-118 → ингест; хвост «не узнано» → demand:candidates (TASK-28). Повторить по Ильича-33/Ленина-45.
-- [ ] #3 Поиск/выбор по оцифрованному холодильнику (A1-A4, B*): агент отвечает «есть ли тут X / всё от пивоварни Y / замена / что не пробовал» по объединённому пулу кран+холодильник точки.
-- [ ] #4 Реверс «где найти сорт» (E1) и substitution (B3/B5) на текущих данных — отдельные мини-фичи, не ждут оцифровки.
+- [x] #1 Эпик декомпозирован в майлстоун M4 (design `vault/strategy/m4-craft-locator.md`): TASK-30 (каскад поиска), TASK-31 (фото+vision оцифровка), TASK-32 (запрос словами→фильтр), TASK-33 (пул точки + личное), TASK-34 (интерфейс web/Mini App/PWA), TASK-35 (свежесть+кэш), TASK-36 (векторные «похожие», опц/позже).
+- [x] #2 Базовый механизм ингеста холодильника готов: `scripts/ingest-shelf.ts` (фото→vision-JSON → `buildMatcher` → листинги `format=can/bottle` на venue, идемпотентно по дню), поток `data/ingest/shelf-flow.md`, typecheck+DRY пройдены. Дальнейшее наполнение/отладка — TASK-31.
+- [ ] #3 Майлстоун M4 закрыт (все дочерние задачи Done) — MVP «поиск на точке для меня» работает.
 <!-- AC:END -->
 
 ## Implementation Notes

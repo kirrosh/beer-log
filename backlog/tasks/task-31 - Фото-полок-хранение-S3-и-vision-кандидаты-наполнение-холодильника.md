@@ -1,0 +1,41 @@
+---
+id: TASK-31
+title: 'Фото полок: хранение (S3) + vision→кандидаты, наполнение холодильника'
+status: To Do
+assignee: []
+created_date: '2026-06-04 12:00'
+milestone: 'M4: Поиск на точке'
+labels:
+  - data
+  - vision
+  - venue
+dependencies:
+  - TASK-29
+references:
+  - scripts/ingest-shelf.ts
+  - data/ingest/shelf-flow.md
+  - scripts/migrate-images-to-s3.ts
+priority: high
+---
+
+## Description
+
+<!-- SECTION:DESCRIPTION:BEGIN -->
+Трек A. Бутылочный пул баров-точек в вебе НЕдоступен → источник = фото полок (пользователь/владелец на
+месте). Хранить фото в S3 (как этикетки) с привязкой `фото ↔ venue ↔ дата ↔ распознанные позиции`
+(сырьё + аудит-след матча). Vision (сейчас агент, потом дешёвая модель в фоне) распознаёт банки →
+кандидаты `data/discovery/shelf-<venue>.json` → `ingest-shelf` (механизм готов, TASK-29). Жертвуем
+точностью ради покрытия: даже brewery-only полезнее пустоты.
+<!-- SECTION:DESCRIPTION:END -->
+
+## Acceptance Criteria
+<!-- AC:BEGIN -->
+- [ ] #1 Схема хранения фото полок: S3-путь + запись (venue, дата, url, список распознанных extId) для аудита/переоцифровки
+- [ ] #2 Vision-флоу отлажен на реальном фото полки Beer Mug Гагарина-118: точность чтения банок, где рвётся (блики/похожие лейблы); первая реальная оцифровка → листинги can/bottle
+- [ ] #3 Хвост «не узнано» → demand:candidates (TASK-28). Повтор по Ильича-33/Ленина-45
+<!-- AC:END -->
+
+## Implementation Notes
+<!-- SECTION:NOTES:BEGIN -->
+Механизм ингеста (ingest-shelf.ts) и поток (shelf-flow.md) уже есть из TASK-29 #2. Здесь — хранилище фото + отладка распознавания на реальных снимках + наполнение. S3-флоу переиспользует migrate-images-to-s3 (этикетки).
+<!-- SECTION:NOTES:END -->
