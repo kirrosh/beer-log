@@ -12,7 +12,9 @@
     "web": "bun --filter @beer-log/web dev",
     "web:build": "bun run catalog:export && bun run digest:gen && bun --filter @beer-log/web build",
     "venue:api": "bun run scripts/venue-server.ts",
-    "venue:dev": "bun run scripts/venue-server.ts & bun --filter @beer-log/web dev"
+    "venue:dev": "bun run scripts/venue-server.ts & bun --filter @beer-log/web dev",
+    "tunnel": "ngrok http 3000",
+    "bot": "bun run scripts/telegram-bot.ts"
   },
   "devDependencies": {
     "typescript": "^5.6.0",

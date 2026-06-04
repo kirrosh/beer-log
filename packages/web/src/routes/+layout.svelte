@@ -1,9 +1,36 @@
 <script lang="ts">
   import "../app.css";
+  import { onMount } from "svelte";
   import { page } from "$app/state";
   import { generatedAt, counts } from "$lib/catalog";
   let { children } = $props();
   const isHome = $derived(page.url.pathname === "/");
+
+  // ── Telegram Mini App (TASK-34 #2): no-op вне Telegram ──────────────────────
+  // SDK подключён в app.html. Внутри клиента: разворачиваем на весь экран, прячем
+  // веб-шапку/футер (нативный чрома Telegram заменяет их), нативная кнопка «Назад».
+  let tg = $state<any>(null);
+  onMount(() => {
+    const w = window as any;
+    const api = w.Telegram?.WebApp;
+    // вне Telegram SDK всё равно задаёт platform="unknown" — активируемся только при реальной платформе
+    if (!api || !api.platform || api.platform === "unknown") return;
+    tg = api;
+    tg.ready();
+    tg.expand?.();
+    document.documentElement.classList.add("in-tg");
+    const onBack = () => history.back();
+    tg.BackButton?.onClick(onBack);
+    return () => tg?.BackButton?.offClick(onBack);
+  });
+
+  // кнопку «Назад» показываем на вложенных экранах (не на корне списка точек)
+  $effect(() => {
+    if (!tg?.BackButton) return;
+    const p = page.url.pathname;
+    if (p === "/" || p === "/venues") tg.BackButton.hide();
+    else tg.BackButton.show();
+  });
 </script>
 
 <header class="top">
@@ -35,6 +62,10 @@
 </footer>
 
 <style>
+  /* В Telegram Mini App прячем веб-шапку/футер — их роль играет нативный чрома клиента */
+  :global(html.in-tg) .top, :global(html.in-tg) .foot { display: none; }
+  :global(html.in-tg) main { min-height: auto; }
+
   .top { position: sticky; top: 0; z-index: 20; backdrop-filter: blur(12px); background: color-mix(in srgb, var(--bg) 78%, transparent); }
   .bar { display: flex; align-items: center; justify-content: space-between; height: 58px; }
   .brand { display: flex; align-items: baseline; gap: 11px; }

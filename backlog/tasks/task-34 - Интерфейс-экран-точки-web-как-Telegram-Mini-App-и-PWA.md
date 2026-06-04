@@ -29,7 +29,7 @@ priority: high
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
 - [x] #1 Роут `/venue/[id]` в @beer-log/web: пул точки (кран+холодильник), поиск-строка, базовые фильтры
-- [ ] #2 Telegram Mini App: WebApp SDK (initData/тема), запуск из бота; бот — лаунчер + приём фото→оцифровка
+- [x] #2 Telegram Mini App: WebApp SDK + бот-лаунчер (минимальный). Приём фото — вынесен (TASK-31)
 - [ ] #3 PWA: manifest + работа вне TG (открыть по ссылке / на дом. экран). Один билд обслуживает оба
 <!-- AC:END -->
 
@@ -54,4 +54,23 @@ Bun.serve :5174) — переиспользует `venue-search.ts`/`venue-perso
 
 Открытый хвост для #2/#3: API сейчас локальный процесс — для прод-хостинга Mini App/PWA нужен либо
 node-adapter с эндпоинтами, либо вынести API на хост. Линк пул→`/beer/[slug]` работает (beerSlug в payload).
+
+### #2 сделано (2026-06-04) — минимальный бот + мини-апп
+Бот тонкий (лаунчер), приём фото вынесен в TASK-31.
+- `scripts/telegram-bot.ts` — Bun + чистый fetch к Bot API, long polling (боту HTTPS не нужен).
+  Функции: `/start` (web_app-кнопка «Открыть у полки»→/venues), `/venues` (точки inline-web_app-кнопками,
+  каждая открывает /venue/<id>), синяя menu-кнопка чата (setChatMenuButton). Токен — `.env` BOT_TOKEN.
+  HTTPS-URL витрины — `WEBAPP_URL` или автодетект запущенного ngrok (его API :4040/api/tunnels).
+- Мини-апп: SDK `telegram.org/js/telegram-web-app.js` в `app.html`; в `+layout.svelte` — `ready()/expand()`,
+  нативный BackButton на вложенных экранах, скрытие веб-шапки/футера в TG (класс `html.in-tg`).
+  Детект «внутри TG» = `platform && platform!=="unknown"` (SDK вне TG всё равно задаёт platform).
+- vite `allowedHosts` пускает ngrok/cloudflare хосты в dev. Скрипты: `tunnel` (ngrok http 3000), `bot`.
+- `.env.example` с BOT_TOKEN/WEBAPP_URL/VENUE_API.
+
+Запуск у полки (3 процесса): `bun run venue:dev` → `bun run tunnel` → `bun run bot`. Затем в Telegram:
+/start или menu-кнопка. **Требует от пользователя:** токен от @BotFather в `.env` (в чат не вставлять).
+Проверено: typecheck/svelte-check чисто, web:build зелёный (SDK в билде), браузер — гард не активируется
+вне TG (шапка видна), в TG-эмуляции шапка/футер скрыты; бот доходит до Bot API, graceful-ошибки.
+
+Замечание: SDK-скрипт грузится и на публичной витрине (no-op вне TG) — стандартный подход, +1 внешний запрос.
 <!-- SECTION:NOTES:END -->
