@@ -5,9 +5,9 @@ import { vitePreprocess } from "@sveltejs/vite-plugin-svelte";
 export default {
   preprocess: vitePreprocess(),
   kit: {
-    // полностью статичная сборка: витрина читает JSON-снапшот каталога.
-    // Без SPA-fallback: все страницы пререндерятся (обходом ссылок).
-    adapter: adapter({ pages: "build", assets: "build", precompress: false }),
+    // статичная сборка каталога (страницы пререндерятся обходом ссылок) + SPA-fallback для
+    // живых роутов точки (/venues, /venue/[id]): они client-only (ssr=false), тянут API.
+    adapter: adapter({ pages: "build", assets: "build", fallback: "200.html", precompress: false }),
     // абсолютные пути к ассетам (сайт отдаётся от корня) — иначе динамические импорты
     // на вложенных маршрутах (/brewery/<slug>/) резолвятся относительно URL и 404-ят
     paths: { relative: false },

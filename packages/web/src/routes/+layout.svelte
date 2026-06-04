@@ -17,6 +17,7 @@
       <a class="navlink" class:on={isHome} href="/">Каталог</a>
       <a class="navlink" class:on={page.url.pathname === "/meta"} href="/meta">Мета</a>
       <a class="navlink" class:on={page.url.pathname === "/top"} href="/top">Топ</a>
+      <a class="navlink" class:on={page.url.pathname.startsWith("/venue")} href="/venues">Точки</a>
     </nav>
   </div>
   <div class="hair"></div>
