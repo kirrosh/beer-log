@@ -23,5 +23,10 @@
       "format": "draft", "pricePaid": 410, "tastedAt": "2026-06-03", "media": []
     }
   },
-  "tastings": []
+  "tastings": [
+    { "beerId": "be_c0bfcf95", "beer": "Jaws Атомная Прачечная", "verdict": "fire", "venue": "beermug-nn/gagarina-118", "format": "draft", "tastedAt": "2026-06-04" },
+    { "beerId": "be_f2ea574c", "beer": "Глетчер Milk of Amnesia", "verdict": "fire", "venue": "beermug-nn/gagarina-118", "format": "draft", "tastedAt": "2026-06-04" },
+    { "beerId": "be_9dc48ba9", "beer": "Rewort Моно: Цитра", "verdict": "good", "wouldRepeat": false, "note": "неплохо, но лично мне слишком цитрусово", "descriptors": ["цитрус"] },
+    { "beerId": "be_23f8ee57", "beer": "Rewort Золотой час", "verdict": "good", "wouldRepeat": true, "note": "зашло", "tastedAt": "2026-06-03" }
+  ]
 }
