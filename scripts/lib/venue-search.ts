@@ -37,7 +37,7 @@ export type SearchResult = {
   candidates: Candidate[]; // ранжированы по score убыв.
 };
 
-type PoolItem = {
+export type PoolItem = {
   beerId: string | null;
   rawTitle: string;          // исходный заголовок листинга (с пивоварней)
   breweryId: string | null;
@@ -46,6 +46,11 @@ type PoolItem = {
   beerNameNorm: string;      // normalizeName(beerName)
   rawNorm: string;           // normalizeName(rawTitle) — для совпадения «бренд+сорт»
   format: string;
+  styleSlug: string | null;  // для замены по стилю (B4 substitution)
+  styleCategory: string | null;
+  price: number | null;
+  sourceType: string | null; // провенанс наблюдения (см. lib/provenance.ts)
+  seenAt: string;            // дата наблюдения
 };
 
 const FUZZY_MIN = 0.6;       // порог отсечки для уровня fuzzy
@@ -130,11 +135,14 @@ export function buildVenueSearch(db: Database, seller: string) {
 }
 
 // ── пул точки ────────────────────────────────────────────────────────────────
-function buildPool(db: Database, seller: string): PoolItem[] {
+/** Объединённый пул точки: distinct сорта по seller (draft+can/bottle), дедуп по канон-сорту. */
+export function buildPool(db: Database, seller: string): PoolItem[] {
   const matcher = buildMatcher(db);
   const rows = db.query(`
     SELECT pl.beer_id AS beerId, pl.beer_name_raw AS raw, pl.format AS format,
+           pl.price AS price, pl.source_type AS sourceType, pl.seen_at AS seenAt,
            b.name AS beerName, b.brewery_id AS brewBeerId,
+           b.style_slug AS styleSlug, b.style_category AS styleCategory,
            br.name AS brewName
     FROM price_listings pl
     LEFT JOIN beers b ON b.id = pl.beer_id
@@ -142,7 +150,9 @@ function buildPool(db: Database, seller: string): PoolItem[] {
     WHERE pl.seller = ?
   `).all(seller) as {
     beerId: string | null; raw: string; format: string;
+    price: number | null; sourceType: string | null; seenAt: string;
     beerName: string | null; brewBeerId: string | null; brewName: string | null;
+    styleSlug: string | null; styleCategory: string | null;
   }[];
 
   // дедуп по канон-сорту (или raw для нераспознанных), оставляя лучший формат
@@ -162,6 +172,8 @@ function buildPool(db: Database, seller: string): PoolItem[] {
       beerId: r.beerId, rawTitle: r.raw, breweryId, breweryName,
       beerName, beerNameNorm: normalizeName(beerName), rawNorm: normalizeName(r.raw),
       format: r.format || "unknown",
+      styleSlug: r.styleSlug, styleCategory: r.styleCategory,
+      price: r.price, sourceType: r.sourceType, seenAt: r.seenAt,
     };
     const key = r.beerId ?? `raw:${item.rawNorm}`;
     const prev = byKey.get(key);
