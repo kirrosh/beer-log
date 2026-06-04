@@ -13,6 +13,10 @@ WEB_PORT="${WEB_PORT:-3000}"
 API_PORT="${VENUE_API_PORT:-5174}"
 NGROK_LOG="/tmp/beerlog-ngrok.log"
 
+# Постоянный ngrok-домен: из env или из .env (без выполнения файла — только эта строка).
+# Если задан — URL мини-аппа НЕ меняется между перезапусками (старые кнопки не протухают).
+NGROK_DOMAIN="${NGROK_DOMAIN:-$(grep -E '^NGROK_DOMAIN=' .env 2>/dev/null | head -1 | cut -d= -f2- | tr -d '"'\'' ')}"
+
 echo "▸ чищу прежние процессы…"
 pkill -f "scripts/venue-server.ts" 2>/dev/null || true
 pkill -f "vite dev"                2>/dev/null || true
@@ -35,8 +39,15 @@ bun run scripts/venue-server.ts & pids+=("$!")
 echo "▸ витрина :$WEB_PORT"
 bun --filter @beer-log/web dev & pids+=("$!")
 
-echo "▸ ngrok → :$WEB_PORT"
-ngrok http "$WEB_PORT" --log stdout >"$NGROK_LOG" 2>&1 & pids+=("$!")
+if [ -n "$NGROK_DOMAIN" ]; then
+  echo "▸ ngrok → :$WEB_PORT (постоянный домен $NGROK_DOMAIN)"
+  ngrok http "$WEB_PORT" --domain="$NGROK_DOMAIN" --log stdout >"$NGROK_LOG" 2>&1 & pids+=("$!")
+else
+  echo "▸ ngrok → :$WEB_PORT (ВРЕМЕННЫЙ URL — меняется при перезапуске!)"
+  echo "  ⚠ чтобы кнопки/menu не протухали: заведи бесплатный static-домен"
+  echo "    https://dashboard.ngrok.com/domains → пропиши NGROK_DOMAIN=<домен> в .env"
+  ngrok http "$WEB_PORT" --log stdout >"$NGROK_LOG" 2>&1 & pids+=("$!")
+fi
 
 # ждём витрину
 for _ in $(seq 1 40); do curl -sf -o /dev/null "http://localhost:$WEB_PORT/" && break; sleep 1; done
