@@ -26,8 +26,28 @@ const SLASH = "__";
 export const sellerToId = (seller: string): string => seller.split("/").join(SLASH);
 export const idToSeller = (id: string): string => id.split(SLASH).join("/");
 
+/** Домашний город: его точки (и бары в нём) поднимаем в начало списка. */
+export const HOME_CITY = process.env.HOME_CITY ?? "Нижний Новгород";
+
 /** Точка (физическая полка) vs веб-магазин: у точки seller содержит '/' (untappd/…, beermug-nn/…). */
 const isVenueSeller = (seller: string): boolean => seller.includes("/");
+
+// Явные мета-оверрайды для точек НЕ из реестра (TG-тап-листы баров и пр.), ключ — полный seller.
+// Реестр (registry.json) покрывает только untappd/<slug>; TG-бары иначе остались бы без города/типа.
+const SELLER_OVERRIDES: Record<string, RegEntry> = {
+  "t.me/chekhov_nn": { name: "Чехов", city: "Нижний Новгород", type: "bar" },
+  "t.me/hopheadnn": { name: "Hophead НН", city: "Нижний Новгород", type: "bar" },
+};
+
+// Канонизация города: область → город (защита от рассинхрона, источник чиним в registry.json).
+const CITY_CANON: Record<string, string> = {
+  "Нижегородская обл.": "Нижний Новгород",
+  "Нижегородская область": "Нижний Новгород",
+};
+const canonCity = (city: string | null): string | null => (city ? CITY_CANON[city] ?? city : city);
+
+/** Бароподобная точка (бар или бар-магазин) — для приоритета «бары впереди». */
+const isBarLike = (type: string): boolean => type === "bar" || type === "bar-shop";
 
 type RegEntry = { name: string; city: string | null; type: string };
 function loadRegistry(path = "data/venues/registry.json"): Map<string, RegEntry> {
@@ -77,16 +97,24 @@ export function venueIndex(db: Database, registryPath?: string): VenueInfo[] {
   return rows
     .filter((r) => isVenueSeller(r.seller))
     .map((r): VenueInfo => {
-      const info = reg.get(r.seller);
+      // приоритет источника меты: явный оверрайд → реестр → эвристика
+      const info = SELLER_OVERRIDES[r.seller] ?? reg.get(r.seller);
       return {
         id: sellerToId(r.seller),
         seller: r.seller,
         name: info?.name ?? fallbackName(r.seller),
-        city: info?.city ?? fallbackCity(r.seller),
+        city: canonCity(info?.city ?? fallbackCity(r.seller)),
         type: info?.type ?? fallbackType(r.seller),
         source: sourceOf(r.seller),
         poolSize: r.c,
       };
     })
-    .sort((a, b) => b.poolSize - a.poolSize || a.name.localeCompare(b.name, "ru"));
+    // НН-бары → НН-прочее → остальные; внутри ранга — по объёму пула
+    .sort((a, b) => venueRank(a) - venueRank(b) || b.poolSize - a.poolSize || a.name.localeCompare(b.name, "ru"));
+}
+
+/** Ранг для сортировки: домашние бары (0) → домашние прочие (1) → остальные (2). */
+function venueRank(v: VenueInfo): number {
+  if (v.city === HOME_CITY) return isBarLike(v.type) ? 0 : 1;
+  return 2;
 }

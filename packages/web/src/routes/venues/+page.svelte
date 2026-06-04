@@ -4,7 +4,7 @@
   let { data } = $props();
   let q = $state("");
 
-  const TYPE_LABEL: Record<string, string> = { bar: "бар", shop: "магазин", unknown: "точка" };
+  const TYPE_LABEL: Record<string, string> = { bar: "бар", shop: "магазин", "bar-shop": "бар·магазин", unknown: "точка" };
   const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е");
 
   const filtered = $derived.by(() => {
@@ -14,14 +14,15 @@
     return list;
   });
 
-  // группировка по городу для навигации «по карте»
+  // группировка по городу. Порядок групп и точек внутри = как пришло из API
+  // (НН-бары первыми, см. venueRank в venue-registry.ts) — не пересортировываем по размеру.
   const byCity = $derived.by(() => {
     const m = new Map<string, VenueInfo[]>();
     for (const v of filtered) {
       const c = v.city ?? "Без города";
       (m.get(c) ?? m.set(c, []).get(c)!).push(v);
     }
-    return [...m.entries()].sort((a, b) => b[1].length - a[1].length);
+    return [...m.entries()];
   });
 </script>
 
