@@ -12,6 +12,6 @@ export default defineConfig({
       "/api": { target: process.env.VENUE_API ?? "http://localhost:5174", changeOrigin: true },
     },
     // мини-апп открывается через ngrok-туннель (TASK-34 #2) — пускаем туннельные хосты в dev
-    allowedHosts: [".ngrok-free.app", ".ngrok.io", ".ngrok.app", ".trycloudflare.com"],
+    allowedHosts: [".ngrok-free.app", ".ngrok-free.dev", ".ngrok.io", ".ngrok.app", ".trycloudflare.com"],
   },
 });
