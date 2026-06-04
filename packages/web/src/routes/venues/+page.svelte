@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { haptic } from "$lib/telegram";
   import type { VenueInfo } from "./+page";
   let { data } = $props();
   let q = $state("");
@@ -56,7 +57,7 @@
         <div class="cityhd"><span>{city}</span><span class="mono">{venues.length}</span></div>
         <div class="cards">
           {#each venues as v (v.id)}
-            <a class="card" href={`/venue/${v.id}`}>
+            <a class="card" href={`/venue/${v.id}`} onclick={() => haptic.impact("light")}>
               <span class="t t-{v.type}">{TYPE_LABEL[v.type] ?? v.type}</span>
               <span class="nm">{v.name}</span>
               <span class="meta mono">{v.poolSize} позиц.</span>

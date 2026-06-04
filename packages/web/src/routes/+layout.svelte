@@ -3,21 +3,17 @@
   import { onMount } from "svelte";
   import { page } from "$app/state";
   import { generatedAt, counts } from "$lib/catalog";
+  import { initTelegramChrome } from "$lib/telegram";
   let { children } = $props();
   const isHome = $derived(page.url.pathname === "/");
 
   // ── Telegram Mini App (TASK-34 #2): no-op вне Telegram ──────────────────────
-  // SDK подключён в app.html. Внутри клиента: разворачиваем на весь экран, прячем
-  // веб-шапку/футер (нативный чрома Telegram заменяет их), нативная кнопка «Назад».
+  // SDK подключён в app.html. Внутри клиента: разворачиваем, красим нативный чрома в тон,
+  // прячем веб-шапку/футер, нативная кнопка «Назад».
   let tg = $state<any>(null);
   onMount(() => {
-    const w = window as any;
-    const api = w.Telegram?.WebApp;
-    // вне Telegram SDK всё равно задаёт platform="unknown" — активируемся только при реальной платформе
-    if (!api || !api.platform || api.platform === "unknown") return;
-    tg = api;
-    tg.ready();
-    tg.expand?.();
+    tg = initTelegramChrome();
+    if (!tg) return; // обычный браузер
     document.documentElement.classList.add("in-tg");
     const onBack = () => history.back();
     tg.BackButton?.onClick(onBack);

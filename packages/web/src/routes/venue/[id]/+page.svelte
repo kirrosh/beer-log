@@ -1,10 +1,43 @@
 <script lang="ts">
+  import { onMount } from "svelte";
   import { formatLabel, fmtPrice, plur } from "$lib/catalog";
   import { catMeta } from "$lib/styles";
+  import { tgWebApp, haptic } from "$lib/telegram";
   import type { PoolItem, SearchResult } from "./+page";
 
   let { data } = $props();
   const venue = $derived(data.venue);
+
+  // ── MainButton «Выбрать за меня» (нативный Telegram, TASK-34 #2) ─────────────
+  // Случайный сорт из непробованного (фолбэк — весь пул) показываем нативным showPopup.
+  function roll() {
+    const src = (data.notTasted as PoolItem[]).length ? (data.notTasted as PoolItem[]) : (data.pool as PoolItem[]);
+    if (!src.length) return;
+    const p = src[Math.floor(Math.random() * src.length)];
+    haptic.notify("success");
+    const price = p.price != null ? ` · ${fmtPrice(p.price)}` : "";
+    const tg = tgWebApp();
+    tg?.showPopup?.(
+      {
+        title: "Бери это 🍺",
+        message: `${p.beerName}\n${p.breweryName ?? ""} · ${formatLabel(p.format)}${price}`,
+        buttons: [
+          { id: "again", type: "default", text: "Ещё" },
+          { type: "close", text: "Беру" },
+        ],
+      },
+      (id: string) => { if (id === "again") roll(); },
+    );
+  }
+  onMount(() => {
+    const tg = tgWebApp();
+    const mb = tg?.MainButton;
+    if (!mb) return;
+    mb.setText("🎲 Выбрать за меня");
+    mb.show();
+    mb.onClick(roll);
+    return () => { mb.offClick(roll); mb.hide(); };
+  });
 
   const TYPE_LABEL: Record<string, string> = { bar: "бар", shop: "магазин", unknown: "точка" };
   const norm = (s: string) => s.toLowerCase().replace(/ё/g, "е");
@@ -36,7 +69,13 @@
     searching = true;
     fetch(`/api/venue/${encodeURIComponent(venue.id)}/search?q=${encodeURIComponent(term)}`)
       .then((r) => r.json())
-      .then((r: SearchResult) => { if (q.trim() === term) result = r; })
+      .then((r: SearchResult) => {
+        if (q.trim() !== term) return;
+        result = r;
+        // тактильный сигнал по тону каскада: нашли/грубо/мимо
+        haptic.notify(r.level === "exact" || r.level === "fuzzy" ? "success"
+          : r.level === "brewery" ? "warning" : "error");
+      })
       .catch(() => { result = null; })
       .finally(() => { searching = false; });
   }
@@ -198,9 +237,9 @@
     <h2>Что на точке <span class="rc mono">· {filteredPool.length}</span></h2>
     <div class="pooltools">
       <div class="fmtchips">
-        <button class="fc" class:on={!fmtFilter} onclick={() => (fmtFilter = "")}>все</button>
+        <button class="fc" class:on={!fmtFilter} onclick={() => { haptic.select(); fmtFilter = ""; }}>все</button>
         {#each formats as [f, n]}
-          <button class="fc" class:on={fmtFilter === f} onclick={() => (fmtFilter = f)}>{formatLabel(f)} <span class="fn mono">{n}</span></button>
+          <button class="fc" class:on={fmtFilter === f} onclick={() => { haptic.select(); fmtFilter = f; }}>{formatLabel(f)} <span class="fn mono">{n}</span></button>
         {/each}
       </div>
       <div class="search sm">
