@@ -1,7 +1,8 @@
 ---
 id: TASK-40
 title: 'Ингест Untappd-меню в граф доступности: цены/формат/freshness'
-status: To Do
+status: Done
+updated_date: '2026-06-04'
 assignee: []
 created_date: '2026-06-04 10:37'
 labels:
@@ -32,13 +33,15 @@ Freshness: observed_at = таймстемп меню (часы) → tier (proven
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Листинги из меню в графе с провенансом+форматом+observed_at; pour отдельно от unit
-- [ ] #2 «Цена от» не смешивает pour (кран) и unit (бутылка/банка) — по аналогии с исключением опта/кега
-- [ ] #3 Freshness-tier по таймстемпу меню, виден в блоке «Где найти»/мете; кэш по венью
+- [x] #1 Листинги из меню в графе с провенансом+форматом+observed_at; pour отдельно от unit
+- [x] #2 «Цена от» не смешивает pour (кран) и unit (бутылка/банка) — по аналогии с исключением опта/кега
+- [~] #3 Freshness-tier по таймстемпу меню, виден в блоке «Где найти»/мете (done); кэш ответов по венью — отложен
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Tier-A венью (бизнес-меню) делают трек A (фото-vision, TASK-31) фолбэком для Tier-B (хвост без меню). Этот ингест = быстрая полоса «Untappd-меню → ingest» из ревизии vault/strategy/m4-craft-locator.md.
+
+**Реализация (2026-06-04).** `scripts/ingest-untappd-menu.ts <slug>/<venueId> [--seller <key>] [--no-images]`. seller по умолчанию `untappd/<slug>` (новый namespace продавца). Пишет `recordListing` по одной строке на каждый размер/цену позиции (объём идёт с ценой), `source_type=untappd-menu`, `seen_at`=дата среза меню (observed_at из updated-time), format pour/unit раздельно. Провенанс: новый SourceType `untappd-menu` в lib/provenance.ts (BASE 0.75, label «по меню заведения · Untappd (дата)») → freshness-tier виден в «Где найти»/мете через существующий tier(). **pour⊥unit:** export-catalog.ts — `isRetailPrice` теперь исключает `format==="draft"` (как опт/кег), «цена от» = только unit бутылка/банка. **Обложки (task-15):** сматченному сорту без картинки рехостим `.beer-label` в S3 (`putImage`, `setBeerImage`) — за сессию +272 обложки (Братья 99 / Hophead 101 / Игра 72), публично доступны. Прогон 3 венью: **723 листинга** (Братья 268 / Hophead 289 / Игра 166), pool точки строится (`buildPool("untappd/<slug>")`), поиск/личное работают на новом seller. ⚠️ баг TDZ при первом прогоне (const extByCt после цикла → ReferenceError молча в catch → 0 обложек) — исправлен подъёмом к верхним константам. Кэш ответов по венью (#3) — отложен (повторный фетч дёшев, freshness уже из observed_at). NEXT (опц.): пере-скан по расписанию (меню ротируется), ингест крупных боттлшопов из реестра (Пиво и Пена 1201, TBPBar 694).
 <!-- SECTION:NOTES:END -->

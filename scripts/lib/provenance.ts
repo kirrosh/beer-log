@@ -9,7 +9,7 @@
 // адреса), а не через GPS. Поэтому web-photo по умолчанию низкий tier: его легко спутать с другим
 // филиалом сети или с прошлогодним ассортиментом.
 
-export type SourceType = "owner" | "self" | "user" | "web-photo" | "shop-web" | "map-menu";
+export type SourceType = "owner" | "self" | "user" | "web-photo" | "shop-web" | "map-menu" | "untappd-menu";
 export type TierLevel = "high" | "medium" | "low";
 
 export type Provenance = {
@@ -19,7 +19,7 @@ export type Provenance = {
 
 // базовое доверие к каналу (до поправки на возраст)
 const BASE: Record<SourceType, number> = {
-  owner: 0.95, self: 0.9, user: 0.85, "shop-web": 0.7, "map-menu": 0.65, "web-photo": 0.5,
+  owner: 0.95, self: 0.9, user: 0.85, "untappd-menu": 0.75, "shop-web": 0.7, "map-menu": 0.65, "web-photo": 0.5,
 };
 const STALE_DAYS = 180;   // старше — «возможно неактуально»
 const DEAD_DAYS = 365;    // старше — низкий tier независимо от источника
@@ -51,6 +51,7 @@ function label(st: SourceType, observedAt: string, stale: boolean): string {
     self: "проверено на месте",
     user: "фото от пользователя",
     "shop-web": "веб-каталог",
+    "untappd-menu": `по меню заведения · Untappd (${observedAt})`,
     "map-menu": `по меню на картах (${observedAt})`,
     "web-photo": `по открытому фото (${observedAt})`,
   }[st];

@@ -78,14 +78,16 @@ const beersAll = (db.query(
     srcs.map((s) => sourceChannelOfUrl(s.source_url)).filter((c): c is SourceChannel => !!c),
   )].sort();
   // сигнал спроса (петля, task-10): где в наличии / сколько листингов / есть ли скидка +
-  // диапазон РОЗНИЧНЫХ цен. Из «цены» исключаем опт (за упаковку) и кег (30л — не
-  // потребительская розница), иначе «от/до» врут. reach = число продавцов (опт входит).
+  // диапазон РОЗНИЧНЫХ цен. Из «цены» исключаем опт (за упаковку), кег (30л — не потребительская
+  // розница) и draft/pour (кран: цена за порцию 300/150мл ИЛИ за литр — несопоставима с ценой за
+  // бутылку/банку; смешивать pour и unit в «цена от» врёт — трек E, TASK-40). reach = все продавцы.
   type PlRow = { seller: string | null; discounted: number; price: number | null; format: string | null; seen_at: string };
   const pl = db.query(
     "SELECT seller, discounted, price, format, seen_at FROM price_listings WHERE beer_id = ?",
   ).all(r.id as string) as PlRow[];
   const isRetailPrice = (x: PlRow) =>
-    x.seller != null && sellerKind(x.seller) !== "opt" && x.format !== "keg" && x.price != null && x.price > 0;
+    x.seller != null && sellerKind(x.seller) !== "opt"
+    && x.format !== "keg" && x.format !== "draft" && x.price != null && x.price > 0;
   const retailPrices = pl.filter(isRetailPrice).map((x) => x.price as number);
   // разбивка по продавцу для блока «Где найти» (task-20): цена «от», форматы, дата снапшота
   const bySeller = new Map<string, PlRow[]>();

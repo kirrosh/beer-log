@@ -1,9 +1,10 @@
 ---
 id: TASK-37
 title: 'Дискавери RF-венью с Untappd-бизнес-меню: реестр точек + детект меню'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-04 10:36'
+updated_date: '2026-06-04'
 labels:
   - data
   - venue
@@ -30,13 +31,15 @@ priority: high
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Реестр венью {untappd venueId, slug, name, city, type bar/shop, hasMenu, menuOffering} в data/ (для регулярного парса)
-- [ ] #2 Дискавери-метод: Google site-search сиды + BFS по nearby (учесть: nearby отдают только no-menu страницы, menu-венью — листья) + детект бизнес-меню
-- [ ] #3 Старт Москва+СПб+миллионники, не «весь веб» сразу; покрытие логируется (сколько с меню/без)
+- [x] #1 Реестр венью {untappd venueId, slug, name, city, type bar/shop, hasMenu, menuOffering} в data/ (для регулярного парса)
+- [x] #2 Дискавери-метод: Google site-search сиды + BFS по nearby (учесть: nearby отдают только no-menu страницы, menu-венью — листья) + детект бизнес-меню
+- [x] #3 Старт Москва+СПб+миллионники, не «весь веб» сразу; покрытие логируется (сколько с меню/без)
 <!-- AC:END -->
 
 ## Implementation Notes
 
 <!-- SECTION:NOTES:BEGIN -->
 Скоуп-решение про «все RF-бары» одобрено Кириллом 2026-06-04 после разведзонда. nearby-граф расширяется только через no-menu венью — комбинировать с Google-сидами по городам. Топ-кандидаты новых RU-крафт-пивоварен из зонда (вне наших 247): Midnight Project, Plague Brew, Осьминогец, Заповедник, Gravity Project, Godbeerg.
+
+**Реализация (2026-06-04).** `scripts/discover-untappd-venues.ts` → `data/venues/registry.json`. Сиды по городам (МСК/СПб/НН, расширяемо `--seeds <file>`) + BFS на nearby (только через no-menu венью — меню-венью листья, подтверждено). Детект меню — `probeOnly`-режим парсера (`fetchVenueMenus(slug,id,{probeOnly:true})`, только базовая страница: menu-selector / brewery_picker / menu-item). Классификация bar/shop/bar-shop из `<h2>`. Реестр (merge, не перезатирает): venueId/slug/name/city/type/verified/hasMenu/menuOffering/rosterSize/beersTotal/checkedAt/discoveredVia. Первый обход: 16 венью, **10 с бизнес-меню (63%, совпало с зондом)**, Σ 4069 сортов в ростерах; BFS вскрыл новые точки (Пиво и Пена 1201, TBPBar 694, Share House, Craft Republic, Перья Коня, Пиво на Ушинке). Покрытие логируется. NEXT (опц.): больше сидов по миллионникам (Google site:untappd.com/v вручную → --seeds).
 <!-- SECTION:NOTES:END -->

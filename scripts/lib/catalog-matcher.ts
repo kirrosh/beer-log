@@ -110,7 +110,38 @@ export function buildMatcher(db: Database, opts: { createAuto?: boolean } = {}) 
     return { breweryId: brewery.id, breweryName: brewery.name };
   }
 
-  return { match, aliasCount: aliasIndex.length, breweryCount: brews.length };
+  /**
+   * Матч сорта внутри УЖЕ известной пивоварни (E3: пивоварню взяли точным ключом — untappd-id —
+   * а не сканом алиаса в заголовке). beerTitle — имя сорта (можно с префиксом пивоварни, он срежется
+   * по алиасам). Возвращает сорт (с авто-созданием при createAuto), либо только пивоварню, если имя
+   * сорта пустое/не распозналось. null — если breweryId неизвестен каталогу.
+   */
+  function matchInBrewery(breweryId: string, beerTitle: string): Match | null {
+    const brewery = brews.find((b) => b.id === breweryId);
+    if (!brewery) return null;
+    const aliases = aliasesByBrew.get(brewery.id) ?? [];
+    const cands = beerNameCandidates(beerTitle, aliases);
+    const beers = beersOf(brewery.id);
+    for (const c of cands) {
+      const beer = beers.find((b) => {
+        const names = [b.name, ...safeArr(b.aliases)];
+        return names.some((n) => isSameBeer(c, n));
+      });
+      if (beer) {
+        return { breweryId: brewery.id, breweryName: brewery.name, beerId: beer.id, beerSlug: beer.slug, beerName: beer.name };
+      }
+    }
+    if (createAuto && cands.length) {
+      const name = cands[0]!;
+      const beerId = upsertBeer(db, { name, breweryId: brewery.id, breweryNameRaw: brewery.name, status: "auto" });
+      const slug = slugify(name);
+      beersOf(brewery.id).push({ id: beerId, name, slug, aliases: "[]" });
+      return { breweryId: brewery.id, breweryName: brewery.name, beerId, beerSlug: slug, beerName: name, createdAuto: true };
+    }
+    return { breweryId: brewery.id, breweryName: brewery.name };
+  }
+
+  return { match, matchInBrewery, aliasCount: aliasIndex.length, breweryCount: brews.length };
 }
 
 function safeArr(s: string): string[] {

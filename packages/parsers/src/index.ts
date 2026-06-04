@@ -8,6 +8,13 @@ export { parseBreweryReleases } from "./telegram/rewort-release.ts";
 export type { BreweryRelease } from "./telegram/rewort-release.ts";
 export { untappdWebParser, parseUntappdBeerList, parseUntappdBeerTotal, parseUntappdMoreBeerPath, parseUntappdBreweryLogo, classifyUntappdBeerListUrl } from "./untappd/untappd-web.ts";
 export type { UntappdBeer } from "./untappd/untappd-web.ts";
+export {
+  fetchVenueMenus, parseVenueMeta, parseVenueMenuSelector, parseVenueMenuUpdatedAt,
+  parseVenueMenuItems, parseVenueRoster, parseNearbyVenues, formatFromSize, volumeFromSize,
+} from "./untappd/untappd-venue.ts";
+export type {
+  VenueMenuItem, VenueMenuPrice, VenueMenuRef, VenueMeta, VenueRosterEntry, VenueNearby, VenueMenusResult,
+} from "./untappd/untappd-venue.ts";
 export { parseInsalesProducts, shopTitleToBeerName } from "./shops/insales.ts";
 export type { InsalesProduct, ShopFormat } from "./shops/insales.ts";
 export {
