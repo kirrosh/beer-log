@@ -21,6 +21,9 @@ export type VenueInfo = {
   type: string;        // bar | shop | unknown
   source: string;      // untappd | beermug | other (происхождение данных точки)
   poolSize: number;    // число листингов под seller (сырое, до дедупа пула)
+  lat: number | null;  // координаты точки (TASK-42). Пока заполнены не у всех — наполнение
+  lng: number | null;  // отдельная задача; haversine считается только когда обе известны.
+  mapUrl: string;      // deeplink-поиск в Яндекс.Картах по имени+городу (карта без координат)
 };
 
 const SLASH = "__";
@@ -48,20 +51,39 @@ const CITY_CANON: Record<string, string> = {
 const canonCity = (city: string | null): string | null => (city ? CITY_CANON[city] ?? city : city);
 
 /** Бароподобная точка (бар или бар-магазин) — для приоритета «бары впереди». */
-const isBarLike = (type: string): boolean => type === "bar" || type === "bar-shop";
+export const isBarLike = (type: string): boolean => type === "bar" || type === "bar-shop";
 
-type RegEntry = { name: string; city: string | null; type: string };
+type RegEntry = { name: string; city: string | null; type: string; lat?: number | null; lng?: number | null };
 function loadRegistry(path = "data/venues/registry.json"): Map<string, RegEntry> {
   const m = new Map<string, RegEntry>();
   try {
     const r = JSON.parse(readFileSync(path, "utf8")) as {
-      venues?: { slug: string; name: string; city?: string | null; type?: string }[];
+      venues?: { slug: string; name: string; city?: string | null; type?: string; lat?: number; lng?: number }[];
     };
     for (const v of r.venues ?? []) {
-      m.set(`untappd/${v.slug}`, { name: v.name, city: v.city ?? null, type: v.type ?? "unknown" });
+      m.set(`untappd/${v.slug}`, {
+        name: v.name, city: v.city ?? null, type: v.type ?? "unknown", lat: v.lat ?? null, lng: v.lng ?? null,
+      });
     }
   } catch { /* реестра нет — упадём на эвристику */ }
   return m;
+}
+
+/** Deeplink-поиск точки в Яндекс.Картах по имени+городу — карта/маршрут без знания координат. */
+export function mapUrlFor(name: string, city: string | null): string {
+  const q = [name.replace(/·/g, " ").replace(/\s+/g, " ").trim(), city].filter(Boolean).join(", ");
+  return `https://yandex.ru/maps/?text=${encodeURIComponent(q)}`;
+}
+
+/** Расстояние между двумя точками по формуле гаверсинуса, км. Для сортировки «ближайшие». */
+export function haversineKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(s)) * 10) / 10;
 }
 
 // эвристики для seller без записи в реестре (сеть Beer Mug и пр.)
@@ -100,14 +122,19 @@ export function venueIndex(db: Database, registryPath?: string): VenueInfo[] {
     .map((r): VenueInfo => {
       // приоритет источника меты: явный оверрайд → реестр → эвристика
       const info = SELLER_OVERRIDES[r.seller] ?? reg.get(r.seller);
+      const name = info?.name ?? fallbackName(r.seller);
+      const city = canonCity(info?.city ?? fallbackCity(r.seller));
       return {
         id: sellerToId(r.seller),
         seller: r.seller,
-        name: info?.name ?? fallbackName(r.seller),
-        city: canonCity(info?.city ?? fallbackCity(r.seller)),
+        name,
+        city,
         type: info?.type ?? fallbackType(r.seller),
         source: sourceOf(r.seller),
         poolSize: r.c,
+        lat: info?.lat ?? null,
+        lng: info?.lng ?? null,
+        mapUrl: mapUrlFor(name, city),
       };
     })
     // НН-бары → НН-прочее → остальные; внутри ранга — по объёму пула

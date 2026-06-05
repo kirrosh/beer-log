@@ -12,6 +12,11 @@
 //
 //   DRY=1 bun run scripts/ingest-shelf.ts data/discovery/shelf-beermug-nn-gagarina-118.json
 //   bun run scripts/ingest-shelf.ts data/discovery/shelf-beermug-nn-gagarina-118.json
+//
+// Бот (beer-concierge, #4 фото борда) НЕ может создавать файлы (нет Write/Bash-записи в allowlist),
+// поэтому принимает ту же структуру inline через --json (как record-tasting). Дефолтный провенанс
+// при inline = ai-vision (фото распознано на месте), при файле остаётся web-photo (исторический ingest).
+//   bun run scripts/beerlog.ts shelf --json '{"venue":"beermug-nn/gagarina-118","items":[…]}'
 import { openDb, recordListing, stats } from "@beer-log/store";
 import { parseVolumeMl, looksLikeBeerLine, type ShopFormat } from "@beer-log/parsers";
 import { buildMatcher } from "./lib/catalog-matcher.ts";
@@ -21,31 +26,45 @@ const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const DRY = !!process.env.DRY;
 const today = new Date().toISOString().slice(0, 10);
 
-const file = process.argv[2];
-if (!file) { console.error("Укажи JSON-файл: bun run scripts/ingest-shelf.ts <shelf-*.json>"); process.exit(1); }
-
 interface ShelfItem {
   brewery?: string; sort?: string; abv?: number; style?: string;
   format?: ShopFormat; price?: number; volumeMl?: number;
   // провенанс на item (переопределяет файловый): для агрегата фото с разными датами/источниками
   observedAt?: string; sourceType?: SourceType; sourceUrl?: string;
 }
-const raw = await Bun.file(file).json() as {
+type ShelfDoc = {
   venue?: string; sourceUrl?: string; sourceType?: SourceType; observedAt?: string; items?: ShelfItem[];
 };
+
+// вход: либо файл (исторический ingest), либо inline --json (бот). Дефолт провенанса зависит от пути:
+// inline = ai-vision (фото на месте, бот не пишет файлы), файл = web-photo (старый веб-фетч).
+const jsonIdx = process.argv.indexOf("--json");
+const inline = jsonIdx >= 0 ? process.argv[jsonIdx + 1] : undefined;
+const file = inline ? undefined : process.argv[2];
+let raw: ShelfDoc;
+let defaultSourceType: SourceType;
+if (inline) {
+  try { raw = JSON.parse(inline) as ShelfDoc; } catch { console.error("! --json: невалидный JSON"); process.exit(1); }
+  defaultSourceType = "ai-vision";
+} else if (file) {
+  raw = await Bun.file(file).json() as ShelfDoc;
+  defaultSourceType = "web-photo";
+} else {
+  console.error("Укажи источник: <shelf-*.json> или --json '{…}'"); process.exit(1);
+}
+
 const venue = raw.venue;
-if (!venue) { console.error(`! нет поля "venue" (seller точки) в ${file}`); process.exit(1); }
-const fileSourceUrl = raw.sourceUrl ?? "shelf-photo";
-// провенанс по умолчанию для всего файла: источник холодильника теперь — открытое веб-фото,
-// observed_at = дата ПОСТА/съёмки (а не ингеста), иначе старьё выдаётся за свежак. См. lib/provenance.ts.
-const fileSourceType: SourceType = raw.sourceType || "web-photo";
+if (!venue) { console.error(`! нет поля "venue" (seller точки)`); process.exit(1); }
+const fileSourceUrl = raw.sourceUrl ?? (inline ? "shelf-vision" : "shelf-photo");
+// провенанс по умолчанию для всего документа (см. defaultSourceType выше; lib/provenance.ts).
+const fileSourceType: SourceType = raw.sourceType || defaultSourceType;
 const fileObservedAt = raw.observedAt || today;
 const venueSlug = venue.split("/").pop()!;
 
 const db = openDb(DB_PATH);
 const matcher = buildMatcher(db, { createAuto: !DRY });
 const ft = tier({ sourceType: fileSourceType, observedAt: fileObservedAt });
-console.log(`=== Холодильник ${venue} · файл ${file} · DRY=${DRY} ===`);
+console.log(`=== Холодильник ${venue} · ${file ? `файл ${file}` : "inline --json"} · DRY=${DRY} ===`);
 console.log(`матчер: ${matcher.breweryCount} пивоварен / ${matcher.aliasCount} алиасов`);
 console.log(`провенанс: ${fileSourceType} · наблюдение ${fileObservedAt} · tier=${ft.level} (${ft.score}) «${ft.label}»`);
 

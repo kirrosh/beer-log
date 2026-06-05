@@ -40,6 +40,21 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog profile [--venue <seller>]",
     argv: S("bot-profile.ts"),
   },
+  recommend: {
+    desc: "Топ-5 под меня на точке: профиль × пул → repeat/new с объяснением (TASK-43)",
+    usage: "beerlog recommend --seller <seller> [--limit 5]",
+    argv: S("bot-recommend.ts"),
+  },
+  top5: {
+    desc: "Алиас recommend — топ-5 под меня на точке",
+    usage: "beerlog top5 --seller <seller>",
+    argv: S("bot-recommend.ts"),
+  },
+  nearby: {
+    desc: "Куда пойти: крафт-точки города с маркерами и ссылкой на карту (TASK-42)",
+    usage: "beerlog nearby [--city <город>] [--lat <ш> --lng <д>] [--limit 10]",
+    argv: S("bot-nearby.ts"),
+  },
   context: {
     desc: "Контекст диалога вкладки (set/get/clear) — что показывали последним",
     usage: "beerlog context set --chat <id> --beer-id <id> [--thread <id>]",
