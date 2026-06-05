@@ -3,8 +3,12 @@
   "private": true,
   "type": "module",
   "workspaces": ["packages/*"],
+  "bin": {
+    "beerlog": "./scripts/beerlog.ts"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "beerlog": "bun run scripts/beerlog.ts",
     "parse:tg": "bun run packages/parsers/src/run.ts",
     "catalog:export": "bun run scripts/export-catalog.ts",
     "digest:gen": "bun run scripts/gen-digest.ts",

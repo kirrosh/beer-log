@@ -1,0 +1,30 @@
+{
+  "_comment": "Пермишены ТОЛЬКО для сессии-бота. Грузится через bot.sh --settings, поэтому dev-сессии в этом же репо его НЕ получают и авто-разрешений не имеют. Bash авто-разрешает детерминированный хук scripts/bot-permit.ts (тугой вайтлист скриптов бота, режет любые опасные хвосты). MCP-инструменты канала и Read разрешены явно, чтобы бот отвечал/реагировал/качал вложения/читал фото без промптов. delete_topic намеренно НЕ разрешён (редкая деструктивная операция → пусть спрашивает).",
+  "permissions": {
+    "allow": [
+      "Read",
+      "Agent",
+      "mcp__plugin_telegram_telegram__reply",
+      "mcp__plugin_telegram_telegram__edit_message",
+      "mcp__plugin_telegram_telegram__react",
+      "mcp__plugin_telegram_telegram__download_attachment",
+      "mcp__plugin_telegram_telegram__create_topic",
+      "mcp__plugin_telegram_telegram__edit_topic",
+      "mcp__plugin_telegram_telegram__close_topic",
+      "mcp__plugin_telegram_telegram__reopen_topic"
+    ]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bun '/Users/kirrotech/Documents/Claude/Projects/Beer Log/scripts/bot-permit.ts'"
+          }
+        ]
+      }
+    ]
+  }
+}
