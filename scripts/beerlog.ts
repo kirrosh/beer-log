@@ -30,6 +30,16 @@ const COMMANDS: Record<string, Cmd> = {
     usage: `beerlog tasting --json '{"beer":"…","verdict":"fire|good|pass"}'`,
     argv: S("record-tasting.ts"),
   },
+  me: {
+    desc: "Профиль вкуса из tastings (стили/дескрипторы/огоньки/траты, разрез по точке)",
+    usage: "beerlog me [--venue <seller|подстрока>] [--style <category>]",
+    argv: S("bot-profile.ts"),
+  },
+  profile: {
+    desc: "Алиас me — профиль вкуса из tastings",
+    usage: "beerlog profile [--venue <seller>]",
+    argv: S("bot-profile.ts"),
+  },
   context: {
     desc: "Контекст диалога вкладки (set/get/clear) — что показывали последним",
     usage: "beerlog context set --chat <id> --beer-id <id> [--thread <id>]",

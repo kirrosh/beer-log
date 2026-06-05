@@ -20,6 +20,7 @@ const SCRIPTS = [
   "catalog-q",       // readonly SQL по каталогу (замена `bun -e`)
   "search-venue",    // поиск «та самая» на точке (чтение)
   "venue-personal",  // личные срезы точки (чтение)
+  "bot-profile",     // профиль вкуса из tastings (чтение)
   "record-tasting",  // запись дегустации в data/personal (намеренная запись бота)
   "bot-context",     // контекст диалога (запись служебного json)
   "ingest-shelf",    // запись наличия точки из фото-борда (намеренная запись бота)
