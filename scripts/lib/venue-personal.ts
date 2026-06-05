@@ -11,8 +11,8 @@
 // Источник личного — data/personal/{tastings,highlights}.json (правит агент, UI нет). Срезы
 // корректно деградируют при пустых tastings: notTasted=весь пул, fromFavorites=пусто.
 import { buildPool, type PoolItem } from "./venue-search.ts";
-import { categorizeStyle } from "@beer-log/catalog-core";
-import { readFileSync } from "node:fs";
+import { categorizeStyle, normalizeName } from "@beer-log/catalog-core";
+import { readFileSync, writeFileSync } from "node:fs";
 import type { Database } from "bun:sqlite";
 
 // стиль сорта: из БД-поля, а если пусто/unknown — детект из имени (стиль зашит в названии,
@@ -29,7 +29,8 @@ function effectiveStyle(styleSlug: string | null, name: string): { slug: string;
 export type Verdict = "fire" | "good" | "pass";
 export type Tasting = {
   beerId: string | null; beer: string; verdict?: Verdict; favorite?: boolean;
-  wouldRepeat?: boolean; venue?: string; descriptors?: string[]; format?: string;
+  wouldRepeat?: boolean; note?: string; descriptors?: string[]; venue?: string;
+  format?: string; pricePaid?: number; tastedAt?: string; media?: string[];
 };
 export type Highlight = {
   venue: string; beerId: string | null; beer: string; badge: string; reason: string;
@@ -45,6 +46,74 @@ export function loadPersonal(dir = "data/personal"): { tastings: Tasting[]; high
   const tastings = readJsonArray<Tasting>(`${dir}/tastings.json`, "tastings");
   const highlights = readJsonArray<Highlight>(`${dir}/highlights.json`, "highlights");
   return { tastings, highlights };
+}
+
+// ── запись дегустаций (TASK-46, D1) ─────────────────────────────────────────────
+// Парный писатель к loadPersonal: дозаписывает одну дегустацию в tastings.json, сохраняя _schema
+// и формат «одна запись на строку». Идемпотентен по ключу (beerId|raw-имя) + дата + точка: повтор
+// той же фразы не плодит дубль, а мерджит новые непустые поля в существующую запись.
+// Источник истины файла — этот же JSON; единственный писатель — агент через record-tasting.ts.
+const TASTING_KEY_ORDER: (keyof Tasting)[] = [
+  "beerId", "beer", "verdict", "favorite", "wouldRepeat", "note",
+  "descriptors", "venue", "format", "pricePaid", "tastedAt", "media",
+];
+
+// Ключ дедупа: канон (beerId) или нормализованное имя + дата. Точку (venue) НЕ включаем намеренно:
+// уточнение venue отдельной репликой («ты был на Гагарина?») домерджится в ту же дегустацию, а не
+// создаст дубль. Цена компромисса — один и тот же сорт в один день на двух точках слипнётся в одну
+// запись (редкий бар-кроул); для личного лога приемлемо.
+function tastingKey(t: Tasting): string {
+  const id = t.beerId ?? `raw:${normalizeName(t.beer ?? "")}`;
+  return `${id}|${t.tastedAt ?? ""}`;
+}
+
+/** Убрать пустые поля и зафиксировать порядок ключей (стабильный diff, читаемые записи). */
+function cleanTasting(t: Tasting): Tasting {
+  const out: Record<string, unknown> = {};
+  for (const k of TASTING_KEY_ORDER) {
+    const v = (t as Record<string, unknown>)[k];
+    if (v === undefined || v === null && k !== "beerId") continue;
+    if (typeof v === "string" && v.trim() === "") continue;
+    if (Array.isArray(v) && v.length === 0) continue;
+    out[k] = v;
+  }
+  if (!("beerId" in out)) out.beerId = null; // beerId обязателен в схеме (null = вне канона)
+  return out as Tasting;
+}
+
+/** Сериализация tastings.json: _schema без переформатирования смысла, записи — по одной на строку. */
+function serializeTastings(schema: unknown, tastings: Tasting[]): string {
+  const schemaJson = JSON.stringify(schema, null, 2).split("\n").join("\n  ");
+  const body = tastings.map((t) => `    ${JSON.stringify(cleanTasting(t))}`).join(",\n");
+  return `{\n  "_schema": ${schemaJson},\n  "tastings": [\n${body}\n  ]\n}\n`;
+}
+
+export type AppendResult = { action: "appended" | "merged"; record: Tasting; total: number };
+
+/** Дозаписать дегустацию (идемпотентно). Возвращает финальную запись и действие. */
+export function appendTasting(input: Tasting, dir = "data/personal"): AppendResult {
+  const path = `${dir}/tastings.json`;
+  const raw = JSON.parse(readFileSync(path, "utf8")) as { _schema?: unknown; tastings?: Tasting[] };
+  const schema = raw._schema ?? {};
+  const list: Tasting[] = Array.isArray(raw.tastings) ? raw.tastings : [];
+
+  const rec = cleanTasting(input);
+  const key = tastingKey(rec);
+  const idx = list.findIndex((t) => tastingKey(t) === key);
+
+  let action: "appended" | "merged";
+  let record: Tasting;
+  if (idx >= 0) {
+    record = cleanTasting({ ...list[idx], ...rec }); // мерж: новые непустые поля поверх старых
+    list[idx] = record;
+    action = "merged";
+  } else {
+    record = rec;
+    list.push(record);
+    action = "appended";
+  }
+  writeFileSync(path, serializeTastings(schema, list));
+  return { action, record, total: list.length };
 }
 
 export function buildVenuePersonal(db: Database, seller: string, personalDir = "data/personal") {

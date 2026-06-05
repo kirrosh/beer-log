@@ -10,6 +10,7 @@
 // резолвит точку, не таская весь список. Имена/города берём из реестра Untappd-венью
 // (data/venues/registry.json, трек E), для сети Beer Mug — из эвристики (реестра нет).
 import { readFileSync } from "node:fs";
+import { normalizeName, nameSimilarity } from "@beer-log/catalog-core";
 import type { Database } from "bun:sqlite";
 
 export type VenueInfo = {
@@ -117,4 +118,64 @@ export function venueIndex(db: Database, registryPath?: string): VenueInfo[] {
 function venueRank(v: VenueInfo): number {
   if (v.city === HOME_CITY) return isBarLike(v.type) ? 0 : 1;
   return 2;
+}
+
+// ── резолв точки по словам (TASK-46): «на Гагарина» / «в Beer Mug» → seller ──────
+export type VenueResolution = {
+  input: string;
+  resolved: VenueInfo | null;            // уверенный матч (для записи venue), иначе null
+  candidates: (VenueInfo & { score: number })[]; // топ кандидатов на уточнение агентом
+};
+
+/** Схожесть запроса с точкой: имя, адресная часть seller и префикс сети (translit-устойчиво). */
+function venueScore(input: string, v: VenueInfo): number {
+  const qi = normalizeName(input);
+  if (!qi) return 0;
+  const addr = v.seller.split("/")[1] ?? "";
+  const chain = v.seller.split("/")[0] ?? "";
+  let best = 0;
+  for (const t of [v.name, addr, chain]) {
+    const tn = normalizeName(t);
+    if (!tn) continue;
+    if (tn.includes(qi) || qi.includes(tn)) best = Math.max(best, 0.9); // вхождение слова («гагарина» ⊂ «gagarina118»)
+    best = Math.max(best, nameSimilarity(input, t));
+  }
+  return best;
+}
+
+/**
+ * Резолв точки из произвольной фразы. Если уже передан seller (есть '/') — берём как есть.
+ * Уверенный матч (score ≥ STRONG и явный лидер) → resolved; иначе кандидаты на уточнение.
+ * Запись дегустации НЕ блокируется отсутствием venue — это решает вызывающий.
+ */
+export function resolveVenue(db: Database, input: string, registryPath?: string): VenueResolution {
+  const q = input.trim();
+  if (!q) return { input, resolved: null, candidates: [] };
+
+  const venues = venueIndex(db, registryPath);
+  // уже готовый seller — не угадываем
+  if (q.includes("/")) {
+    const exact = venues.find((v) => v.seller === q);
+    if (exact) return { input, resolved: exact, candidates: [{ ...exact, score: 1 }] };
+  }
+
+  const STRONG = 0.6, KEEP = 0.4, LEAD = 0.15;
+  const scored = venues
+    .map((v) => ({ ...v, score: venueScore(q, v) }))
+    .filter((v) => v.score >= KEEP)
+    .sort((a, b) => b.score - a.score || venueRank(a) - venueRank(b));
+
+  const top = scored[0];
+  const confident = !!top && top.score >= STRONG &&
+    (scored.length === 1 || top.score - (scored[1]?.score ?? 0) >= LEAD);
+  return {
+    input,
+    resolved: confident ? stripScore(top) : null,
+    candidates: scored.slice(0, 3),
+  };
+}
+
+function stripScore(v: VenueInfo & { score: number }): VenueInfo {
+  const { score, ...rest } = v;
+  return rest;
 }

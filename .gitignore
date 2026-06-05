@@ -23,3 +23,6 @@ data/.secrets/
 
 # локальные снапшоты БД (scripts/backup-db.ts)
 backups/
+
+# эфемерный контекст диалога бота (TASK-46): «последний показанный сорт по чату», TTL — не источник правды
+data/personal/.bot-context.json
