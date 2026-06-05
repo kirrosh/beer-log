@@ -13,6 +13,7 @@ const argv = process.argv.slice(2);
 const cmd = argv[0];
 const get = (name: string) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
 const chat = get("--chat");
+const thread = get("--thread"); // вкладка (forum topic) — разводит контекст по репозиторию
 
 function fail(msg: string): never {
   console.log(JSON.stringify({ ok: false, error: msg }));
@@ -26,17 +27,17 @@ switch (cmd) {
     const beerId = get("--beer-id") ?? null;
     const beer = get("--beer");
     if (!beer && !beerId) fail("set требует --beer и/или --beer-id");
-    setLastBeer(chat!, { beerId, beer: beer ?? "", venue: get("--venue") });
-    console.log(JSON.stringify({ ok: true, set: getLastBeer(chat!) }));
+    setLastBeer(chat!, { beerId, beer: beer ?? "", venue: get("--venue") }, undefined, thread);
+    console.log(JSON.stringify({ ok: true, set: getLastBeer(chat!, undefined, thread) }));
     break;
   }
   case "get": {
-    const ctx = getLastBeer(chat!);
+    const ctx = getLastBeer(chat!, undefined, thread);
     console.log(JSON.stringify(ctx ?? { empty: true }));
     break;
   }
   case "clear": {
-    clearChat(chat!);
+    clearChat(chat!, undefined, thread);
     console.log(JSON.stringify({ ok: true }));
     break;
   }

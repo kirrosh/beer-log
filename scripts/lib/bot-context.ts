@@ -17,6 +17,12 @@ type Store = Record<string, ChatBeerContext>;
 const FILE = (dir: string) => `${dir}/.bot-context.json`;
 const TTL_MS = 12 * 60 * 60 * 1000; // 12ч: «попробовал» спустя полдня ещё привяжется, через сутки — нет
 
+// Ключ записи. С вкладками (forum topics) один chat_id содержит несколько вкладок-репозиториев
+// (TASK: tab-router) — разводим контекст по message_thread_id. Без thread (General/старые файлы)
+// ключ = голый chatId → обратная совместимость с уже записанными контекстами.
+const keyOf = (chatId: string, thread?: string) =>
+  thread ? `${chatId}#${thread}` : chatId;
+
 function load(dir: string): Store {
   const path = FILE(dir);
   if (!existsSync(path)) return {};
@@ -33,27 +39,33 @@ function save(dir: string, store: Store): void {
   writeFileSync(FILE(dir), JSON.stringify(store, null, 2) + "\n");
 }
 
-/** Запомнить последний показанный сорт для чата. */
+/** Запомнить последний показанный сорт для чата (опц. вкладки/thread). */
 export function setLastBeer(
   chatId: string,
   ctx: { beerId: string | null; beer: string; venue?: string },
   dir = "data/personal",
+  thread?: string,
 ): void {
   const store = load(dir);
-  store[chatId] = { ...ctx, ts: Date.now() };
+  store[keyOf(chatId, thread)] = { ...ctx, ts: Date.now() };
   save(dir, store);
 }
 
 /** Последний показанный сорт (null, если нет/протух). */
-export function getLastBeer(chatId: string, dir = "data/personal"): ChatBeerContext | null {
-  const ctx = load(dir)[chatId];
+export function getLastBeer(
+  chatId: string,
+  dir = "data/personal",
+  thread?: string,
+): ChatBeerContext | null {
+  const ctx = load(dir)[keyOf(chatId, thread)];
   if (!ctx) return null;
   if (Date.now() - ctx.ts > TTL_MS) return null;
   return ctx;
 }
 
-/** Забыть контекст чата (напр. после записи дегустации или смены темы). */
-export function clearChat(chatId: string, dir = "data/personal"): void {
+/** Забыть контекст чата/вкладки (напр. после записи дегустации или смены темы). */
+export function clearChat(chatId: string, dir = "data/personal", thread?: string): void {
   const store = load(dir);
-  if (chatId in store) { delete store[chatId]; save(dir, store); }
+  const key = keyOf(chatId, thread);
+  if (key in store) { delete store[key]; save(dir, store); }
 }

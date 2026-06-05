@@ -26,7 +26,7 @@ const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 type Input = {
   beer?: string; beerId?: string | null; verdict?: string; favorite?: boolean;
   wouldRepeat?: boolean; note?: string; descriptors?: string[] | string; venue?: string;
-  format?: string; pricePaid?: number; tastedAt?: string; media?: string[]; chat?: string;
+  format?: string; pricePaid?: number; tastedAt?: string; media?: string[]; chat?: string; thread?: string;
 };
 
 function parseArgs(argv: string[]): Input {
@@ -47,6 +47,7 @@ function parseArgs(argv: string[]): Input {
   const price = get("--price"); if (price) out.pricePaid = Number(price);
   out.tastedAt = get("--date");
   out.chat = get("--chat");
+  out.thread = get("--thread");
   if (argv.includes("--favorite")) out.favorite = true;
   if (argv.includes("--would-repeat")) out.wouldRepeat = true;
   if (argv.includes("--no-repeat")) out.wouldRepeat = false;
@@ -154,7 +155,7 @@ const input = parseArgs(process.argv.slice(2));
 // Это страховка от потери beerId при компактизации/рестарте; источник пишет агент (bot-context set).
 let fromContext = false;
 if (!input.beer && !input.beerId && input.chat) {
-  const ctx = getLastBeer(input.chat);
+  const ctx = getLastBeer(input.chat, undefined, input.thread);
   if (ctx) {
     input.beerId = ctx.beerId ?? undefined;
     input.beer = ctx.beer || input.beer;
