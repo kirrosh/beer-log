@@ -17,6 +17,7 @@
 // поэтому принимает ту же структуру inline через --json (как record-tasting). Дефолтный провенанс
 // при inline = ai-vision (фото распознано на месте), при файле остаётся web-photo (исторический ingest).
 //   bun run scripts/beerlog.ts shelf --json '{"venue":"beermug-nn/gagarina-118","items":[…]}'
+import { Database } from "bun:sqlite";
 import { openDb, recordListing, stats } from "@beer-log/store";
 import { parseVolumeMl, looksLikeBeerLine, type ShopFormat } from "@beer-log/parsers";
 import { buildMatcher } from "./lib/catalog-matcher.ts";
@@ -61,7 +62,9 @@ const fileSourceType: SourceType = raw.sourceType || defaultSourceType;
 const fileObservedAt = raw.observedAt || today;
 const venueSlug = venue.split("/").pop()!;
 
-const db = openDb(DB_PATH);
+// DRY → readonly-открытие (openDb всегда пишет journal_mode=WAL + migrate, что мутирует файл и
+// шумит в git даже без записи листингов). Реальный ингест — через openDb (WAL + миграции).
+const db = (DRY ? new Database(DB_PATH, { readonly: true }) : openDb(DB_PATH)) as ReturnType<typeof openDb>;
 const matcher = buildMatcher(db, { createAuto: !DRY });
 const ft = tier({ sourceType: fileSourceType, observedAt: fileObservedAt });
 console.log(`=== Холодильник ${venue} · ${file ? `файл ${file}` : "inline --json"} · DRY=${DRY} ===`);
@@ -107,6 +110,10 @@ console.log(`\nпозиций ${total} | сорт сматчен ${matchedBeer} 
 console.log(`match-rate сорта: ${total ? ((matchedBeer / total) * 100).toFixed(1) : 0}%`);
 console.log(`\n— примеры матчей (= линк, + auto-сорт):`); sampleMatched.forEach((s) => console.log(s));
 if (sampleUnmatched.length) { console.log(`\n— НЕ узнано (импорт/вне канона):`); sampleUnmatched.forEach((s) => console.log(s)); }
-if (!DRY) { console.log(`\nзаписано листингов: ${listings} (format=can/bottle, seller=${venue})`); console.log("STATS:", JSON.stringify(stats(db))); }
-db.exec("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;");
+if (!DRY) {
+  console.log(`\nзаписано листингов: ${listings} (format=can/bottle, seller=${venue})`);
+  console.log("STATS:", JSON.stringify(stats(db)));
+  // журнал трогаем только при реальной записи — иначе DRY-прогон шумит в git (catalog.sqlite mtime/journal)
+  db.exec("PRAGMA wal_checkpoint(TRUNCATE); PRAGMA journal_mode=DELETE;");
+}
 db.close();

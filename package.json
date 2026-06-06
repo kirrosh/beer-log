@@ -8,6 +8,7 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
+    "test": "bun test tests/",
     "beerlog": "bun run scripts/beerlog.ts",
     "parse:tg": "bun run packages/parsers/src/run.ts",
     "catalog:export": "bun run scripts/export-catalog.ts",

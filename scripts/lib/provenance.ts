@@ -31,6 +31,14 @@ export function ageDays(observedAt: string, now: Date = new Date()): number {
   return Math.max(0, Math.floor((now.getTime() - t) / 86_400_000));
 }
 
+/** Лёгкая свежесть наблюдения для выдачи у полки: возраст в днях + флаги «возможно/точно устарело». */
+export function freshness(observedAt: string, now: Date = new Date()): {
+  ageDays: number; stale: boolean; dead: boolean;
+} {
+  const age = ageDays(observedAt, now);
+  return { ageDays: Number.isFinite(age) ? age : -1, stale: age >= STALE_DAYS, dead: age >= DEAD_DAYS };
+}
+
 /** Уровень достоверности + человекочитаемая метка для выдачи. */
 export function tier(p: Provenance, now: Date = new Date()): {
   level: TierLevel; score: number; label: string; stale: boolean;

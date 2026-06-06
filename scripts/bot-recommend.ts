@@ -10,8 +10,8 @@
  * Деградация при пустом профиле (<2 дегустаций): fallback на highlights + свежесть/наличие.
  */
 import { Database } from "bun:sqlite";
-import { buildVenuePersonal, loadPersonal } from "./lib/venue-personal.ts";
-import { ageDays } from "./lib/provenance.ts";
+import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile } from "./lib/venue-personal.ts";
+import { ageDays, freshness } from "./lib/provenance.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 
@@ -29,40 +29,10 @@ if (!seller) {
 
 const db = new Database(DB_PATH, { readonly: true });
 
-// ── профиль вкуса из tastings ─────────────────────────────────────────────────────
+// ── профиль вкуса из tastings (общая lib-логика) ───────────────────────────────────
 const { tastings, highlights } = loadPersonal();
-// категория стиля по beerId (для соотнесения вкуса с пулом)
-const tastedIds = [...new Set(tastings.map((t) => t.beerId).filter(Boolean) as string[])];
-const catById = new Map<string, string>();
-const breweryById = new Map<string, string | null>();
-if (tastedIds.length) {
-  const rows = db.query(
-    `SELECT id, style_category, brewery_id FROM beers WHERE id IN (${tastedIds.map(() => "?").join(",")})`,
-  ).all(...tastedIds) as { id: string; style_category: string | null; brewery_id: string | null }[];
-  for (const r of rows) {
-    catById.set(r.id, r.style_category ?? "unknown");
-    breweryById.set(r.id, r.brewery_id);
-  }
-}
-
-const fireStyles = new Set<string>();
-const goodStyles = new Set<string>();
-const favBreweries = new Set<string>();
-for (const t of tastings) {
-  const cat = t.beerId ? catById.get(t.beerId) : undefined;
-  if (cat && cat !== "unknown") {
-    if (t.verdict === "fire") fireStyles.add(cat);
-    else if (t.verdict === "good") goodStyles.add(cat);
-  }
-  if (t.beerId && (t.favorite || t.verdict === "fire")) {
-    const b = breweryById.get(t.beerId);
-    if (b) favBreweries.add(b);
-  }
-}
-const tastedSet = new Set(tastedIds);
-const repeatable = new Set(
-  tastings.filter((t) => t.beerId && (t.verdict === "fire" || t.wouldRepeat)).map((t) => t.beerId as string),
-);
+const tasteMeta = loadBeerMeta(db, tastings.map((t) => t.beerId));
+const { fireStyles, goodStyles, favBreweries, tastedSet, repeatable } = tasteProfile(tastings, tasteMeta);
 const profileThin = tastings.length < 2;
 
 // бейдж highlight по beerId на этой точке (для new-ветки и fallback)
@@ -97,6 +67,7 @@ type Rec = {
   beerId: string | null; beer: string; brewery: string | null; style: string | null;
   abv: number | null; format: string; price: number | null; image: string | null;
   branch: "repeat" | "new" | "discover"; score: number; reasons: string[];
+  seenAt: string; stale: boolean;   // свежесть наличия — кран ротируется, предупреждаем у полки
 };
 
 const recs: Rec[] = pool.map((p) => {
@@ -127,10 +98,12 @@ const recs: Rec[] = pool.map((p) => {
     reasons.push("уже пробовал");
   }
 
+  const fresh = freshness(p.seenAt);
   return {
     beerId: p.beerId, beer: p.breweryName ? `${p.breweryName} ${p.beerName}` : p.beerName,
     brewery: p.breweryName, style: meta?.style ?? null, abv: meta?.abv ?? null,
     format: p.format, price: p.price, image: meta?.image ?? null, branch, score: Math.round(score * 100) / 100, reasons,
+    seenAt: p.seenAt, stale: fresh.stale,
   };
 });
 

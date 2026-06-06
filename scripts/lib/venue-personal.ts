@@ -48,6 +48,54 @@ export function loadPersonal(dir = "data/personal"): { tastings: Tasting[]; high
   return { tastings, highlights };
 }
 
+// ── профиль вкуса (общий для bot-profile #8/#15 и bot-recommend #43) ──────────────
+// Единый источник: мета сорта по beerId + выведенный вкусовой профиль. Раньше дублировалось
+// в обоих скриптах (fireStyles/favBreweries чуть по-разному) — теперь одна реализация.
+export type BeerMeta = { category: string; styleName: string | null; breweryId: string | null; abv: number | null };
+
+/** Мета каталога по списку beerId одним запросом (стиль/категория/пивоварня/ABV). */
+export function loadBeerMeta(db: Database, beerIds: (string | null | undefined)[]): Map<string, BeerMeta> {
+  const ids = [...new Set(beerIds.filter(Boolean) as string[])];
+  const m = new Map<string, BeerMeta>();
+  if (!ids.length) return m;
+  const rows = db.query(
+    `SELECT id, style_name, style_category, brewery_id, abv FROM beers WHERE id IN (${ids.map(() => "?").join(",")})`,
+  ).all(...ids) as { id: string; style_name: string | null; style_category: string | null; brewery_id: string | null; abv: number | null }[];
+  for (const r of rows) {
+    m.set(r.id, { category: r.style_category ?? "unknown", styleName: r.style_name, breweryId: r.brewery_id, abv: r.abv });
+  }
+  return m;
+}
+
+export type TasteProfile = {
+  fireStyles: Set<string>;      // категории стилей с вердиктом fire
+  goodStyles: Set<string>;      // категории с вердиктом good
+  favBreweries: Set<string>;    // breweryId любимых (favorite|fire)
+  tastedSet: Set<string>;       // все пробованные beerId
+  repeatable: Set<string>;      // beerId, что повторил бы (fire | wouldRepeat)
+};
+
+/** Вывести вкусовой профиль из дегустаций + меты каталога. Категория unknown в стили не идёт. */
+export function tasteProfile(tastings: Tasting[], meta: Map<string, BeerMeta>): TasteProfile {
+  const fireStyles = new Set<string>();
+  const goodStyles = new Set<string>();
+  const favBreweries = new Set<string>();
+  const tastedSet = new Set<string>();
+  const repeatable = new Set<string>();
+  for (const t of tastings) {
+    if (!t.beerId) continue;
+    tastedSet.add(t.beerId);
+    const m = meta.get(t.beerId);
+    if (m && m.category !== "unknown") {
+      if (t.verdict === "fire") fireStyles.add(m.category);
+      else if (t.verdict === "good") goodStyles.add(m.category);
+    }
+    if ((t.favorite || t.verdict === "fire") && m?.breweryId) favBreweries.add(m.breweryId);
+    if (t.verdict === "fire" || t.wouldRepeat) repeatable.add(t.beerId);
+  }
+  return { fireStyles, goodStyles, favBreweries, tastedSet, repeatable };
+}
+
 // ── запись дегустаций (TASK-46, D1) ─────────────────────────────────────────────
 // Парный писатель к loadPersonal: дозаписывает одну дегустацию в tastings.json, сохраняя _schema
 // и формат «одна запись на строку». Идемпотентен по ключу (beerId|raw-имя) + дата + точка: повтор

@@ -14,6 +14,7 @@ import { buildMatcher } from "./lib/catalog-matcher.ts";
 import { nameSimilarity } from "@beer-log/catalog-core";
 import { venueIndex, HOME_CITY, type VenueInfo } from "./lib/venue-registry.ts";
 import { loadPersonal, type Tasting } from "./lib/venue-personal.ts";
+import { freshness } from "./lib/provenance.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const query = process.argv.slice(2).join(" ").trim();
@@ -130,6 +131,8 @@ const places = [...bySeller.entries()].map(([seller, rows]) => {
   // Розничная цена: исключаем кег (опт). Лучшая (минимальная) из оставшихся.
   const retail = rows.filter((r) => r.format !== "keg" && r.price != null).map((r) => r.price!) as number[];
   const city = vi?.city ?? null;
+  const seenAt = rows.map((r) => r.seen_at).sort().at(-1) ?? null;
+  const fresh = seenAt ? freshness(seenAt) : null;
   return {
     seller,
     name: vi?.name ?? seller,
@@ -138,7 +141,9 @@ const places = [...bySeller.entries()].map(([seller, rows]) => {
     kind: sellerKind(seller),
     formats,
     priceFrom: retail.length ? Math.min(...retail) : null,
-    seenAt: rows.map((r) => r.seen_at).sort().at(-1) ?? null,
+    seenAt,
+    ageDays: fresh?.ageDays ?? null,
+    stale: fresh?.stale ?? false,   // ≥180 дн — «возможно неактуально» у полки
   };
 }).sort((a, b) =>
   Number(b.home) - Number(a.home) ||                          // домашний город первым

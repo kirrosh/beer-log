@@ -10,7 +10,7 @@
  * Матчинг/запись НЕ дублируем — стиль берём из БД по beerId, фолбэк — категория из имени.
  */
 import { Database } from "bun:sqlite";
-import { loadPersonal, type Tasting } from "./lib/venue-personal.ts";
+import { loadPersonal, loadBeerMeta, type Tasting, type BeerMeta } from "./lib/venue-personal.ts";
 import { categorizeStyle } from "@beer-log/catalog-core";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
@@ -28,24 +28,14 @@ const styleFilter = flag("style")?.toLowerCase();
 const db = new Database(DB_PATH, { readonly: true });
 const { tastings } = loadPersonal();
 
-// стиль/ABV по beerId из каталога (одним запросом), фолбэк — категория из имени дегустации.
-type BeerMeta = { style: string | null; category: string; abv: number | null };
-const metaById = new Map<string, BeerMeta>();
-const ids = [...new Set(tastings.map((t) => t.beerId).filter(Boolean) as string[])];
-if (ids.length) {
-  const rows = db.query(
-    `SELECT id, style_name, style_category, abv FROM beers WHERE id IN (${ids.map(() => "?").join(",")})`,
-  ).all(...ids) as { id: string; style_name: string | null; style_category: string | null; abv: number | null }[];
-  for (const r of rows) {
-    metaById.set(r.id, { style: r.style_name, category: r.style_category ?? "unknown", abv: r.abv });
-  }
-}
+// стиль/ABV по beerId из каталога (общий loadBeerMeta), фолбэк — категория из имени дегустации.
+const metaById = loadBeerMeta(db, tastings.map((t) => t.beerId));
 db.close();
 
 const metaOf = (t: Tasting): BeerMeta => {
   if (t.beerId && metaById.has(t.beerId)) return metaById.get(t.beerId)!;
   const c = categorizeStyle(t.beer ?? "");
-  return { style: c.category, category: c.category, abv: null };
+  return { category: c.category, styleName: c.category, breweryId: null, abv: null };
 };
 
 // ── фильтры (#15: разрез по точке; опц. по стилю) ─────────────────────────────────
@@ -89,7 +79,7 @@ for (const t of scope) {
 }
 
 const byCount = <T extends { count: number }>(a: T, b: T) => b.count - a.count;
-const card = (t: Tasting) => ({ beer: t.beer, style: metaOf(t).style, venue: t.venue ?? null });
+const card = (t: Tasting) => ({ beer: t.beer, style: metaOf(t).styleName, venue: t.venue ?? null });
 
 const out = {
   scope: { total: scope.length, ofAll: tastings.length, venue: venueFilter ?? null, style: styleFilter ?? null },

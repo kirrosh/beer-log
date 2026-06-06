@@ -80,6 +80,11 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog photo --chat <id> --image <url|path> --caption <text> [--thread <id>]",
     argv: S("tg-photo.ts"),
   },
+  buttons: {
+    desc: "Сообщение с кнопками: reply-buttons (выбор→текст боту) | url-buttons (ссылка/карта)",
+    usage: `beerlog buttons --chat <id> --text <t> --reply-buttons '["A","B"]' [--thread <id>]`,
+    argv: S("tg-buttons.ts"),
+  },
   tab: {
     desc: "Реестр вкладок: какая вкладка у thread (resolve) / список (list)",
     usage: "beerlog tab resolve --thread <id>",
