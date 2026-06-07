@@ -31,20 +31,24 @@ priority: medium
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [~] #1 Координаты: в `VenueInfo`/`registry.json` добавлены поля `lat`/`lng` (nullable) + `mapUrl`
-      (вычисляемый deeplink). **Сами координаты НЕ наполнены** — отдельный ресёрч-проход (узкое место =
-      наполнение, см. Description). `address` не вводил (mapUrl-поиск по имени+городу его заменяет).
-- [ ] #2 reply-keyboard `request_location` → `message.location` — **ЗАБЛОКИРОВАНО**: форк-плагин
-      Telegram (telegram-tabs) принимает только текст/фото, геолокацию пользователя НЕ передаёт.
-      Live-радиус по локации невозможен без доработки плагина (server.ts).
-- [ ] #3 Богатая карточка `sendVenue`/inline-кнопки — требует сырой Bot API (не в allowlist бота).
-      Вместо этого `mapUrl`-ссылка к каждой точке в текстовом ответе.
+- [~] #1 Координаты: поля `lat`/`lng`/`mapUrl` в `VenueInfo`/`registry.json` есть. **Начато наполнение:**
+      2 НН-бара геокожены по адресу через Nominatim (Hophead 56.3294,43.9937; Eric the Red 56.3291,43.9917;
+      `geoVia:nominatim:addr`). Бизнес-имена Nominatim не берёт — путь: имя→адрес (веб) →геокод адреса.
+      Остаётся ~44 точки (отдельный курируемый проход; узкое место = наполнение, см. Description).
+- [x] #2 reply-keyboard `request_location` → `message.location` — **РАЗБЛОКИРОВАНО**: в форк tg-tabs
+      (server.ts) добавлен handler `message:location` → `handleInbound` с `extraMeta {lat,lng}`; геопозиция
+      доходит до агента в `meta.lat/lng`. Кнопка — `beerlog buttons --location-button`. Live-радиус считает
+      haversine (проверено: Hophead 0.20 км от центра, `geoRadiusActive:true`).
+- [x] #3 Inline-кнопки разблокированы (callback-реле́й, TASK-44): карта к точке — `--url-buttons`,
+      выбор/действие — `--callback-buttons` (meta.callback_data). Богатая карточка = `beerlog photo`
+      (обложка+подпись) + кнопки. `sendVenue` как отдельный примитив не нужен.
 - [x] #4 Сортировка/фильтр: `haversineKm()` + `isBarLike` в `venue-registry.ts`; `bot-nearby.ts`
       сортирует по дистанции при заданных координатах юзера, иначе бар→магазин→объём пула.
 - [x] #5 `mapUrl` = deeplink-поиск Яндекс.Карт по имени+городу (`mapUrlFor`) — карта как назначение.
 - [ ] #6 ОПЦ. мини-апп LocationManager — не делал (после бот-версии).
-- [x] #7 Честная рамка зафиксирована: SKILL #6 и `bot-nearby` (`note`/`geoRadiusActive`) прямо
-      говорят, что радиуса нет (нет локации + нет координат), список идёт по релевантности.
+- [x] #7 Честная рамка зафиксирована: SKILL #6 и `bot-nearby` (`note`/`geoRadiusActive`) различают
+      два режима — есть локация+координаты → радиус (haversine); иначе по релевантности с честной
+      пометкой. Радиус теперь рабочий, но `geoRadiusActive:false` остаётся для точек без координат.
 <!-- AC:END -->
 
 ## Implementation Notes
@@ -58,10 +62,12 @@ priority: medium
 `beerlog nearby` (точки города с маркерами 🍺/🛒/📦 и `mapUrl` к каждой), `haversineKm`/`mapUrlFor`/
 `isBarLike` экспортированы из `venue-registry.ts`, поля `lat`/`lng`/`mapUrl` в `VenueInfo`, честная
 рамка в SKILL #6. Smoke по НН даёт 6 баров с картами.
-**Блокер A (плагин):** форк telegram-tabs (server.ts) парсит только text/caption/photo — `message.location`
-не доходит до агента. Live-радиус требует доработки плагина (добавить location в формирование `<channel>`).
-**Блокер B (данные):** `lat`/`lng` у точек пусты — нужен ресёрч-проход (геокодинг по name+city или адресам
-Beer Mug; Untappd координат не отдаёт). До наполнения haversine не на чем считать, поэтому ответ —
-по релевантности + ссылки на карту (что уже полезно: «куда пойти» с кликом на карту).
-Inline-кнопки/`sendVenue` (#3) — сырой Bot API, не в allowlist бота.
+**Блокер A (плагин) — СНЯТ (2026-06-07):** в форк tg-tabs (server.ts) добавлен handler `message:location`
+→ `handleInbound(..., extraMeta {lat,lng})`; геопозиция доходит до агента в `meta.lat/lng`. Кнопка запроса —
+`beerlog buttons --location-button` (reply-keyboard `request_location`). Тем же заходом снят inline-блокер #3:
+форк реле́ит не-perm callback_query (см. TASK-44, `relayCallback`). Правлены обе копии форка — **нужен рестарт бота**.
+**Блокер B (данные) — В РАБОТЕ:** геокодинг по бизнес-имени ненадёжен (Nominatim берёт адреса, не названия).
+Рабочий путь: имя→адрес (веб-поиск 2ГИС/Яндекс) →геокод адреса (Nominatim, free). Так заведены 2 НН-бара
+(Hophead, Eric the Red). Остаётся ~44 точки — отдельный курируемый проход (можно субагентами: имя→адрес→коорд,
+оркестратор пишет в registry.json по `research-subagents-no-db-write`).
 <!-- SECTION:NOTES:END -->
