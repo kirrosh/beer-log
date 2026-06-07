@@ -43,15 +43,17 @@ priority: high
       `image_path`/`download_attachment` (отдельный telegram-bot.ts не нужен — бот = Claude-сессия).
 - [x] #2 Контракт vision→string[]→каскад→запись зафиксирован в `beer-concierge/SKILL.md` интент #4
       (5 шагов: распознать → резолв точки → DRY-предпросмотр → запись → подтверждение). Движок-агностик.
-- [~] #3 Каскад + диалоговое подтверждение: DRY-прогон `shelf --json` показывает match-rate, агент
-      показывает распознанное с обложками и спрашивает «верно?». **inline-кнопки (✅/✏️/❌) НЕ сделаны** —
-      требуют сырой Bot API (не в allowlist бота); подтверждение текстовой репликой.
+- [x] #3 Каскад + диалоговое подтверждение: DRY-прогон `shelf --json` показывает match-rate, агент
+      показывает распознанное с обложками и спрашивает «верно?» inline-кнопками ✅/✏️/❌. Реализовано:
+      форк tg-tabs реле́ит не-perm callback_query в сессию (`relayCallback` в server.ts) с
+      `meta.callback_data`; `tg-buttons.ts` + `beerlog buttons --callback-buttons`; флоу в SKILL #4 шаг 3.
 - [x] #4 Запись через `recordListing` (ingest-shelf): добавлен приём inline `--json` (бот не пишет
       файлы), провенанс при inline = `ai-vision`; в `provenance.ts` добавлен `ai-vision` (BASE 0.6, label).
 - [x] #5 Определение бара: резолв из контекста диалога или вопрос «Ты в <кандидат по HOME_CITY>?» —
       зафиксировано в SKILL #4 шаг 2.
-- [ ] #6 Отложенное подтверждение провенанса (ai-vision 0.6 → self 0.9 спустя время) — НЕ сделано,
-      отдельным шагом (нужен механизм переоценки source_type существующего листинга).
+- [x] #6 Отложенное подтверждение провенанса (ai-vision 0.6 → self 0.9 спустя время): `upgradeProvenance`
+      в store/repo.ts (селектор seller/id/beerId + гард `from`, сброс seen_at), `canUpgrade`/`UPGRADE_TO_SELF_FROM`
+      в provenance.ts (монотонность), CLI `upgrade-provenance.ts` → `beerlog provenance`. Тест на temp-БД зелёный.
 - [x] #7 Бот-центрично: фото шлётся прямо в чат, бар из контекста/переспрос — закрыто #1/#5.
 <!-- AC:END -->
 
@@ -64,7 +66,19 @@ priority: high
 
 **Реализация (2026-06-05):** код-цикл замкнут — `provenance.ts` (+ai-vision 0.6), `ingest-shelf.ts`
 (+inline `--json`, дефолт провенанса ai-vision при inline), `beerlog shelf`, SKILL #4 (полный флоу
-с DRY-предпросмотром). DRY-smoke inline прошёл (tier=medium 0.6, матчинг работает). Остаток: живой
-vision-тест на реальном фото в боте; inline-кнопки подтверждения (#3, нужен сырой Bot API);
-отложенное поднятие провенанса ai-vision→self (#6). S3-хранение фото полок (TASK-31 #1) — вне скоупа.
+с DRY-предпросмотром). DRY-smoke inline прошёл (tier=medium 0.6, матчинг работает).
+
+**Доделано (2026-06-07):** #3 и #6 закрыты.
+- **inline-кнопки (#3):** пересмотр блокера — форк tg-tabs ловит callback_query, но реле́ил только
+  `perm:*`. Добавлен `relayCallback` (server.ts): не-perm callback (allowlist-gated) → channel-сообщение
+  с `meta.callback_data`, `answerCallbackQuery` сразу (агент думает дольше 15-сек окна TG). `tg-buttons.ts`
+  +`--callback-buttons` (валидация ≤64Б), `beerlog buttons`, SKILL #4 шаг 3 (✅/✏️/❌ + edit_message по
+  message_id). Форк правлен в repo `telegram-tabs/` И cache `~/.claude/.../tg-tabs/` — **нужен рестарт бота**
+  (`scripts/bot.sh`) под новый код плагина.
+- **апгрейд провенанса (#6):** `upgradeProvenance` (store) + `canUpgrade`/`UPGRADE_TO_SELF_FROM`
+  (provenance.ts, монотонность) + `upgrade-provenance.ts` → `beerlog provenance`. Только усиление,
+  сброс свежести на сегодня. Тест на temp-БД зелёный (ai-vision→self, чужие source_type/точки не тронуты).
+
+Остаток: **живой vision-тест на реальном фото в боте** (после рестарта — проверить и распознавание→запись,
+и нажатие callback-кнопки, и `beerlog provenance`). S3-хранение фото полок (TASK-31 #1) — вне скоупа.
 <!-- SECTION:NOTES:END -->

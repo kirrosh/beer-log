@@ -224,6 +224,50 @@ export function recordListing(
   return { id, discounted, prevPrice };
 }
 
+export interface ProvenanceUpgradeInput {
+  /** целевой source_type (напр. "self" — лично подтверждено на месте) */
+  to: string;
+  /** опц. обновить дату наблюдения: повторное личное наблюдение сбрасывает счётчик свежести */
+  seenAt?: string;
+  /** селектор — нужен id ИЛИ seller; beerId сужает до одного сорта на точке */
+  id?: string;
+  seller?: string;
+  beerId?: string | null;
+  /** safety-гард: трогаем только строки, чей текущий source_type ∈ from (монотонность — у вызывающего) */
+  from: string[];
+}
+
+/** Поднять провенанс уже записанных листингов (ai-vision → self после личного подтверждения).
+ *  Только апгрейд: `from` ограничивает, какой source_type разрешено перезаписать — политику
+ *  монотонности (BASE растёт) считает вызывающий (provenance.canUpgrade). NULL source_type
+ *  трактуется как "shop-web" (как в provenance.tier). Возвращает затронутые id. */
+export function upgradeProvenance(
+  db: DB,
+  u: ProvenanceUpgradeInput,
+): { updated: number; ids: string[] } {
+  if (!u.id && !u.seller) throw new Error("upgradeProvenance: нужен id или seller");
+  if (!u.from.length) throw new Error("upgradeProvenance: пустой from — нечего апгрейдить безопасно");
+
+  const where: string[] = [];
+  const args: (string | null)[] = [];
+  if (u.id) { where.push("id = ?"); args.push(u.id); }
+  if (u.seller) { where.push("seller = ?"); args.push(u.seller); }
+  if (u.beerId) { where.push("beer_id = ?"); args.push(u.beerId); }
+  where.push(`COALESCE(source_type,'shop-web') IN (${u.from.map(() => "?").join(",")})`);
+  args.push(...u.from);
+
+  const ids = (db.query(`SELECT id FROM price_listings WHERE ${where.join(" AND ")}`)
+    .all(...args) as { id: string }[]).map((r) => r.id);
+  if (!ids.length) return { updated: 0, ids: [] };
+
+  const set = ["source_type = ?"];
+  const setArgs: string[] = [u.to];
+  if (u.seenAt) { set.push("seen_at = ?"); setArgs.push(u.seenAt); }
+  db.query(`UPDATE price_listings SET ${set.join(", ")} WHERE id IN (${ids.map(() => "?").join(",")})`)
+    .run(...setArgs, ...ids);
+  return { updated: ids.length, ids };
+}
+
 export interface Stats {
   breweries: number;
   beers: number;

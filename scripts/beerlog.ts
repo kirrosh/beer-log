@@ -65,6 +65,11 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog shelf …",
     argv: S("ingest-shelf.ts"),
   },
+  provenance: {
+    desc: "Поднять провенанс листингов после личного подтверждения (ai-vision→self, сброс свежести)",
+    usage: "beerlog provenance --seller <venue> [--beer-id <id>] [--to self]",
+    argv: S("upgrade-provenance.ts"),
+  },
   venue: {
     desc: "Поиск «та самая» на точке (каскад exact→fuzzy→brewery→absent)",
     usage: "beerlog venue …",
@@ -81,8 +86,8 @@ const COMMANDS: Record<string, Cmd> = {
     argv: S("tg-photo.ts"),
   },
   buttons: {
-    desc: "Сообщение с кнопками: reply-buttons (выбор→текст боту) | url-buttons (ссылка/карта)",
-    usage: `beerlog buttons --chat <id> --text <t> --reply-buttons '["A","B"]' [--thread <id>]`,
+    desc: "Кнопки: callback-buttons (✅/✏️/❌ → meta.callback_data, без текста) | reply-buttons (выбор→текст) | url-buttons (карта)",
+    usage: `beerlog buttons --chat <id> --text <t> --callback-buttons '[{"text":"✅","data":"shelf:ok"}]' [--thread <id>]`,
     argv: S("tg-buttons.ts"),
   },
   tab: {

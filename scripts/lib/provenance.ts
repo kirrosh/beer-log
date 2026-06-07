@@ -25,6 +25,16 @@ const BASE: Record<SourceType, number> = {
 const STALE_DAYS = 180;   // старше — «возможно неактуально»
 const DEAD_DAYS = 365;    // старше — низкий tier независимо от источника
 
+/** Можно ли поднять провенанс from→to — только усиление (BASE строго растёт), не понижение.
+ *  Гард для upgradeProvenance: ai-vision(0.6)→self(0.9) ✓, self→ai-vision ✗. NULL = shop-web. */
+export function canUpgrade(from: SourceType | null, to: SourceType): boolean {
+  return BASE[to] > (BASE[from ?? "shop-web"] ?? 0.6);
+}
+
+/** Дефолт «что поднимаем до self после личного подтверждения у полки»: AI-распознанное с фото
+ *  и слабое открытое веб-фото. owner/user/shop-web/*-menu не трогаем — иное доверие, не «я видел». */
+export const UPGRADE_TO_SELF_FROM: SourceType[] = ["ai-vision", "web-photo"];
+
 export function ageDays(observedAt: string, now: Date = new Date()): number {
   const t = Date.parse(observedAt + "T00:00:00Z");
   if (Number.isNaN(t)) return Infinity;

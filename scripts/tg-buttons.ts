@@ -2,14 +2,18 @@
 // Отправка сообщения с КНОПКАМИ через Bot API (sendMessage + reply_markup). Только через beerlog
 // (allowlist). Снимает потолок UX бота: выбор кандидата/точки и ссылки на карту кнопками, а не «напиши номер».
 //
-// ВАЖНО про совместимость с channel-плагином: callback от inline-кнопок (callback_data) приходит
-// как callback_query — форк-плагин его НЕ передаёт агенту (как и геолокацию). Поэтому поддержаны
-// ТОЛЬКО два типа кнопок, которые реально доходят/работают:
-//   • reply-buttons — ReplyKeyboardMarkup: нажатие шлёт ТЕКСТ кнопки боту обычным сообщением →
+// Совместимость с channel-плагином: форк tg-tabs реле́ит не-perm callback_query в сессию агента
+// как channel-сообщение с meta.callback_data (см. relayCallback в server.ts). Поэтому поддержаны
+// ТРИ типа кнопок:
+//   • callback-buttons — InlineKeyboardMarkup с callback_data: нажатие НЕ пишет текст в чат, агент
+//     получает <channel> с meta.callback_data=<токен> и сопоставляет с черновиком в bot-context
+//     (подтверждение ✅/✏️/❌ без замусоривания чата). callback_data ≤64 байт — только короткий токен.
+//   • reply-buttons    — ReplyKeyboardMarkup: нажатие шлёт ТЕКСТ кнопки боту обычным сообщением →
 //     агент получит его как <channel> текст и перевызовет нужный скрипт (выбор сорта/точки/да-нет).
-//   • url-buttons   — InlineKeyboardMarkup с url: открывает ссылку (карта/сорт), агенту ничего не нужно.
-// callback_data НЕ поддержан намеренно (бесполезен без callback-handler в плагине).
+//   • url-buttons      — InlineKeyboardMarkup с url: открывает ссылку (карта/сорт), агенту ничего не нужно.
 //
+//   bun run scripts/beerlog.ts buttons --chat 123456789 --thread 504107 \
+//     --text "Холодильник верно?" --callback-buttons '[{"text":"✅ Верно","data":"shelf:ok"},{"text":"✏️ Поправить","data":"shelf:edit"},{"text":"❌ Нет","data":"shelf:no"}]'
 //   bun run scripts/beerlog.ts buttons --chat 123456789 --thread 504107 \
 //     --text "Какую из них?" --reply-buttons '["Атомная Прачечная NEIPA","Атомная Прачечная Lager"]'
 //   bun run scripts/beerlog.ts buttons --chat <id> --text "Hophead" --url-buttons '[{"text":"🗺 Карта","url":"https://…"}]'
@@ -27,8 +31,9 @@ const text = flag("text");
 const replyTo = flag("reply-to");
 const replyButtonsRaw = flag("reply-buttons");
 const urlButtonsRaw = flag("url-buttons");
-if (!chat || !text || (!replyButtonsRaw && !urlButtonsRaw)) {
-  console.error('usage: beerlog buttons --chat <id> --text <text> (--reply-buttons \'["A","B"]\' | --url-buttons \'[{"text","url"}]\') [--thread <id>] [--reply-to <id>]');
+const callbackButtonsRaw = flag("callback-buttons");
+if (!chat || !text || (!replyButtonsRaw && !urlButtonsRaw && !callbackButtonsRaw)) {
+  console.error('usage: beerlog buttons --chat <id> --text <text> (--callback-buttons \'[{"text","data"}]\' | --reply-buttons \'["A","B"]\' | --url-buttons \'[{"text","url"}]\') [--thread <id>] [--reply-to <id>]');
   process.exit(1);
 }
 
@@ -46,7 +51,20 @@ function rows<T>(raw: string, label: string): T[][] {
 }
 
 let reply_markup: Record<string, unknown>;
-if (urlButtonsRaw) {
+if (callbackButtonsRaw) {
+  // inline callback-кнопки: [{text,data}] → [[{text,callback_data}]]. callback_data ≤64 байт;
+  // нажатие реле́ится агенту через форк (meta.callback_data), текст в чат не пишется.
+  const r = rows<{ text: string; data: string }>(callbackButtonsRaw, "callback-buttons");
+  for (const b of r.flat()) {
+    if (!b || typeof b.text !== "string" || typeof b.data !== "string") {
+      console.error('tg-buttons: callback-buttons: каждый элемент = {"text":"…","data":"…"}'); process.exit(1);
+    }
+    if (Buffer.byteLength(b.data, "utf8") > 64) {
+      console.error(`tg-buttons: callback-buttons: data "${b.data}" > 64 байт (лимит Telegram)`); process.exit(1);
+    }
+  }
+  reply_markup = { inline_keyboard: r.map((row) => row.map((b) => ({ text: b.text, callback_data: b.data }))) };
+} else if (urlButtonsRaw) {
   // inline url-кнопки: [{text,url}] → [[{text,url}]]
   const r = rows<{ text: string; url: string }>(urlButtonsRaw, "url-buttons");
   reply_markup = { inline_keyboard: r.map((row) => row.map((b) => ({ text: b.text, url: b.url }))) };
