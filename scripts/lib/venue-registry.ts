@@ -39,8 +39,14 @@ const isVenueSeller = (seller: string): boolean => seller.includes("/");
 // Явные мета-оверрайды для точек НЕ из реестра (TG-тап-листы баров и пр.), ключ — полный seller.
 // Реестр (registry.json) покрывает только untappd/<slug>; TG-бары иначе остались бы без города/типа.
 const SELLER_OVERRIDES: Record<string, RegEntry> = {
-  "t.me/chekhov_nn": { name: "Чехов", city: "Нижний Новгород", type: "bar" },
-  "t.me/hopheadnn": { name: "Hophead НН", city: "Нижний Новгород", type: "bar" },
+  // TG-тап-листы баров. Координаты добавлены ресёрчем (нет Untappd venue page → не из registry.json).
+  // chekhov_nn — сеть «Ваш Чехов» (7 точек); координаты флагмана на Волжской наб. 25.
+  "t.me/chekhov_nn": { name: "Чехов", city: "Нижний Новгород", type: "bar", lat: 56.3415, lng: 43.9548 },
+  "t.me/hopheadnn": { name: "Hophead НН", city: "Нижний Новгород", type: "bar", lat: 56.3305, lng: 43.9963 },
+  // Сеть Beer Mug (НН): seller на точку (адрес в slug), tap-лист на taplink.cc. Координаты — геокод адреса.
+  "beermug-nn/gagarina-118": { name: "Beer Mug · пр. Гагарина 118", city: "Нижний Новгород", type: "bar", lat: 56.2674332, lng: 43.9763206 },
+  "beermug-nn/ilicha-33": { name: "Beer Mug · пр. Ильича 33", city: "Нижний Новгород", type: "bar", lat: 56.2460989, lng: 43.8482211 },
+  "beermug-nn/lenina-45": { name: "Beer Mug · пр. Ленина 45", city: "Нижний Новгород", type: "bar", lat: 56.2814365, lng: 43.9240791 },
 };
 
 // Канонизация города: область → город (защита от рассинхрона, источник чиним в registry.json).
