@@ -2,9 +2,11 @@
 // Отправка сообщения с КНОПКАМИ через Bot API (sendMessage + reply_markup). Только через beerlog
 // (allowlist). Снимает потолок UX бота: выбор кандидата/точки и ссылки на карту кнопками, а не «напиши номер».
 //
-// Совместимость с channel-плагином: форк tg-tabs реле́ит не-perm callback_query в сессию агента
-// как channel-сообщение с meta.callback_data (см. relayCallback в server.ts). Поэтому поддержаны
-// ТРИ типа кнопок:
+// Совместимость с channel-плагином: форк tg-tabs реле́ит в сессию агента не-perm callback_query
+// (meta.callback_data, см. relayCallback) и message.location (meta.lat/lng, см. message:location).
+// Поэтому поддержаны ЧЕТЫРЕ типа кнопок:
+//   • location-button  — reply-keyboard с request_location: нажатие шлёт боту геопозицию → форк кладёт
+//     lat/lng в meta, агент зовёт `nearby --lat --lng` (гео-радиус «куда пойти рядом», TASK-42).
 //   • callback-buttons — InlineKeyboardMarkup с callback_data: нажатие НЕ пишет текст в чат, агент
 //     получает <channel> с meta.callback_data=<токен> и сопоставляет с черновиком в bot-context
 //     (подтверждение ✅/✏️/❌ без замусоривания чата). callback_data ≤64 байт — только короткий токен.
@@ -32,8 +34,9 @@ const replyTo = flag("reply-to");
 const replyButtonsRaw = flag("reply-buttons");
 const urlButtonsRaw = flag("url-buttons");
 const callbackButtonsRaw = flag("callback-buttons");
-if (!chat || !text || (!replyButtonsRaw && !urlButtonsRaw && !callbackButtonsRaw)) {
-  console.error('usage: beerlog buttons --chat <id> --text <text> (--callback-buttons \'[{"text","data"}]\' | --reply-buttons \'["A","B"]\' | --url-buttons \'[{"text","url"}]\') [--thread <id>] [--reply-to <id>]');
+const locationButton = flag("location-button"); // текст кнопки «поделиться геопозицией» (request_location)
+if (!chat || !text || (!replyButtonsRaw && !urlButtonsRaw && !callbackButtonsRaw && !locationButton)) {
+  console.error('usage: beerlog buttons --chat <id> --text <text> (--callback-buttons \'[{"text","data"}]\' | --reply-buttons \'["A","B"]\' | --url-buttons \'[{"text","url"}]\' | --location-button "📍 текст") [--thread <id>] [--reply-to <id>]');
   process.exit(1);
 }
 
@@ -51,7 +54,14 @@ function rows<T>(raw: string, label: string): T[][] {
 }
 
 let reply_markup: Record<string, unknown>;
-if (callbackButtonsRaw) {
+if (locationButton) {
+  // reply-keyboard с request_location: нажатие шлёт боту message.location → форк реле́ит lat/lng
+  // в meta (см. message:location в server.ts), агент зовёт `nearby --lat --lng` для радиуса.
+  reply_markup = {
+    keyboard: [[{ text: locationButton, request_location: true }]],
+    one_time_keyboard: true, resize_keyboard: true, selective: true,
+  };
+} else if (callbackButtonsRaw) {
   // inline callback-кнопки: [{text,data}] → [[{text,callback_data}]]. callback_data ≤64 байт;
   // нажатие реле́ится агенту через форк (meta.callback_data), текст в чат не пишется.
   const r = rows<{ text: string; data: string }>(callbackButtonsRaw, "callback-buttons");

@@ -86,8 +86,8 @@ const COMMANDS: Record<string, Cmd> = {
     argv: S("tg-photo.ts"),
   },
   buttons: {
-    desc: "Кнопки: callback-buttons (✅/✏️/❌ → meta.callback_data, без текста) | reply-buttons (выбор→текст) | url-buttons (карта)",
-    usage: `beerlog buttons --chat <id> --text <t> --callback-buttons '[{"text":"✅","data":"shelf:ok"}]' [--thread <id>]`,
+    desc: "Кнопки: callback (✅/✏️/❌→meta.callback_data) | location (геопозиция→meta.lat/lng) | reply (выбор→текст) | url (карта)",
+    usage: `beerlog buttons --chat <id> --text <t> (--callback-buttons '[{"text","data"}]' | --location-button "📍 текст" | --reply-buttons '["A"]' | --url-buttons '[{"text","url"}]') [--thread <id>]`,
     argv: S("tg-buttons.ts"),
   },
   tab: {
