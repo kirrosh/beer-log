@@ -1,13 +1,14 @@
 ---
 id: TASK-34
 title: 'Интерфейс: экран точки (web) как Telegram Mini App + PWA, бот-лаунчер'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-04 12:00'
-milestone: 'M4: Поиск на точке'
+updated_date: '2026-06-07 08:50'
 labels:
   - ui
   - telegram
+milestone: 'M4: Поиск на точке'
 dependencies:
   - TASK-33
 references:
@@ -34,6 +35,7 @@ priority: high
 <!-- AC:END -->
 
 ## Implementation Notes
+
 <!-- SECTION:NOTES:BEGIN -->
 adapter-static → данные точки предэкспортить в JSON (catalog:export), поиск клиентский для малого объёма; при росте — лёгкий API. У проекта уже есть TG-интеграция (plugin) для бота-лаунчера/приёма фото. Дизайн — позже (frontend-design skill).
 
@@ -73,4 +75,6 @@ node-adapter с эндпоинтами, либо вынести API на хос�
 вне TG (шапка видна), в TG-эмуляции шапка/футер скрыты; бот доходит до Bot API, graceful-ошибки.
 
 Замечание: SDK-скрипт грузится и на публичной витрине (no-op вне TG) — стандартный подход, +1 внешний запрос.
+
+Закрыто: экран точки /venue/[id] (venue-server.ts + SPA, поиск-каскад, фильтры, личные срезы) и Telegram Mini App (web-app SDK, бот-лаунчер, BackButton/MainButton/haptic) готовы. PWA (#3: manifest+service worker, работа вне Telegram) не делаем — опционально, при надобности отдельной задачей.
 <!-- SECTION:NOTES:END -->

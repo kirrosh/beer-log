@@ -4,15 +4,14 @@ title: 'Объединённый пул точки + личное: «не про
 status: Done
 assignee: []
 created_date: '2026-06-04 12:00'
-updated_date: '2026-06-04'
-milestone: 'M4: Поиск на точке'
+updated_date: '2026-06-07 08:50'
 labels:
   - search
   - personal
   - venue
+milestone: 'M4: Поиск на точке'
 dependencies:
   - TASK-30
-  - TASK-31
 references:
   - data/personal/tastings.json
   - data/personal/highlights.json

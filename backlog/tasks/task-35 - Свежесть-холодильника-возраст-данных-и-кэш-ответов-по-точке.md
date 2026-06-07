@@ -4,12 +4,12 @@ title: 'Свежесть холодильника: «возраст данных
 status: To Do
 assignee: []
 created_date: '2026-06-04 12:00'
-milestone: 'M4: Поиск на точке'
+updated_date: '2026-06-07 08:50'
 labels:
   - data
   - venue
-dependencies:
-  - TASK-31
+milestone: 'M4: Поиск на точке'
+dependencies: []
 references:
   - vault/strategy/m4-craft-locator.md
 priority: medium

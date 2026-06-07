@@ -1,9 +1,10 @@
 ---
 id: TASK-43
 title: 'Топ-5 под меня: движок персональных рекомендаций на точке (без векторов)'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-04 17:31'
+updated_date: '2026-06-07 08:41'
 labels:
   - personal
   - recommendations

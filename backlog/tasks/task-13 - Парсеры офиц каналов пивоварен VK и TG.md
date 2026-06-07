@@ -1,10 +1,10 @@
 ---
 id: task-13
 title: 'Парсеры офиц. каналов пивоварен (VK + TG), наведённые на discovery'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-04 11:13'
+updated_date: '2026-06-07 08:50'
 labels:
   - parser
   - phase-0
@@ -60,4 +60,6 @@ priority: low
 TG-сторона готова: fetch-channels.ts наводится на хэндлы из discovery, ingest сортов в каталог, провенанс на записях (десятки пивоварен заингещены). НЕ сделан VK-парсер — но VK помечен «крайний» источник (Backlog.md), большинство активных каналов в TG. Остаток = VK-парсер, low. Можно дробить: TG-часть фактически Done.
 
 ПЕРЕОСМЫСЛЕНО 2026-06-04: снято с High. TG-сторона сделана. VK-остаток ЗАКРЫТЬ — VK без токена/браузера не читается (memory vk-public-paths-closed, мёртвая дорожка). Рост каталога теперь demand-driven через трек E (меню баров вскрывают недостающие пивоварни: Midnight Project, Plague, Осьминогец…), а не слепой добор всех офиц. каналов.
+
+Закрыто: TG-парсер офиц.каналов готов (fetch-channels.ts + ingest-brewery-channels.ts, провенанс на записи). VK — won't-do (без токена/браузера не читается, low ROI). Прогон по пивоварням = backfill, отслеживается дашбордом pipeline-status, а не задачей.
 <!-- SECTION:NOTES:END -->

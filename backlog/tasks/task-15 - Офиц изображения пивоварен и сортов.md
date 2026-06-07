@@ -1,10 +1,10 @@
 ---
 id: task-15
 title: Офиц. изображения пивоварен и сортов (лого/этикетки)
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-03 10:45'
+updated_date: '2026-06-07 08:41'
 labels:
   - catalog
   - web

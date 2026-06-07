@@ -4,11 +4,13 @@ title: 'Фото полок: хранение (S3) + vision→кандидаты
 status: To Do
 assignee: []
 created_date: '2026-06-04 12:00'
-milestone: 'M4: Поиск на точке'
+updated_date: '2026-06-07 08:50'
 labels:
   - data
   - vision
   - venue
+  - duplicate
+milestone: 'M4: Поиск на точке'
 dependencies:
   - TASK-29
 references:
@@ -36,6 +38,7 @@ priority: high
 <!-- AC:END -->
 
 ## Implementation Notes
+
 <!-- SECTION:NOTES:BEGIN -->
 Механизм ингеста (ingest-shelf.ts) и поток (shelf-flow.md) уже есть из TASK-29 #2. Здесь — хранилище фото + отладка распознавания на реальных снимках + наполнение. S3-флоу переиспользует migrate-images-to-s3 (этикетки).
 
@@ -53,4 +56,6 @@ priority: high
   импорта). Вывод: кран ротируется быстро (срезы пересеклись на 21%) → растёт важность TASK-35.
 
 Детали разведки — `vault/strategy/m4-craft-locator.md` §«Разведка открытых источников точки».
+
+Архив: дубль флоу TASK-44 (фото→vision→каскад→recordListing). Уникальное — S3-хранение самих фото полок — осознанно отложено (memory images-rehost-decision); при надобности всплывёт внутри TASK-44.
 <!-- SECTION:NOTES:END -->

@@ -3,9 +3,10 @@ id: TASK-45
 title: >-
   Коннект Claude Code ↔ Telegram: фоновая сессия читает входящие (channel vs
   MCP) + smoke-test
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-04 17:53'
+updated_date: '2026-06-07 08:50'
 labels:
   - infra
   - telegram
@@ -49,4 +50,6 @@ priority: high
 «Отдельно не в этой сессии» (Кирилл): распознавание живёт в фоновой сессии/процессе на Mac mini, текущая интерактивная (планирование) не блокируется. Главный технический риск варианта с двумя ботами — один токен у двух long-polling потребителей → 409 (вариант D его снимает: бот один, claude дёргается сабпроцессом). bun run mini сейчас поднимает telegram-bot.ts + ngrok (это НЕ Claude Code channel).
 
 **Биллинг (вариант D):** headless `claude -p` берёт ту же аутентификацию, что интерактивный CLI. Если в окружении есть ANTHROPIC_API_KEY — уйдёт в API-биллинг (плата по токенам); если его нет и выполнен подписочный вход — расходует Pro/Max. → в env бота/сабпроцесса НЕ прокидывать ANTHROPIC_API_KEY; проверить фактически (claude /status показывает auth method). Это инфра-gate перед TASK-44; провенанс/recordListing/каскад от него не зависят и могут делаться параллельно.
+
+Закрыто: бот живёт (bot.sh, claude-sonnet-4-6 + plugin telegram@tg-tabs), принимает входящие/фото (channels inbox), live-ответ через edit_message, callback_query проброшены (server.ts:908). Остаток операционный/в др.задачах: message.location не проброшен → уходит в TASK-42; формальный smoke-test и анализ inline-кнопок — позже.
 <!-- SECTION:NOTES:END -->

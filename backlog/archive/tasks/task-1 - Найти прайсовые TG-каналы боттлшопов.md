@@ -4,11 +4,12 @@ title: Найти TG-каналы баров/магазинов для слоя 
 status: To Do
 assignee: []
 created_date: '2026-05-29'
-updated_date: '2026-06-04 11:13'
+updated_date: '2026-06-07 08:50'
 labels:
   - demand
   - phase-0
   - parser
+  - backfill
 dependencies: []
 ---
 
@@ -42,4 +43,6 @@ dependencies: []
 источник доступности по городу» (каталог / TG / prose).
 
 СУЖЕНО 2026-06-04 (пет-оптика): скоуп = TG-каналы баров/магазинов ГОРОДОВ Кирилла (НН + куда ездит), не broad РФ. Это длинный хвост доступности вне Untappd — релевантно лично. Пересекается с TASK-41 (venue-маркеры тянут свежесть TG-новостей точки).
+
+Архив: поиск TG-каналов = непрерывный discovery/backfill, отслеживается дашбордом pipeline-status (стадии discovered→sourced→ingested), а не дискретной задачей.
 <!-- SECTION:NOTES:END -->

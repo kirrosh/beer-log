@@ -6,6 +6,7 @@ title: >-
 status: In Progress
 assignee: []
 created_date: '2026-06-04 17:31'
+updated_date: '2026-06-07 08:50'
 labels:
   - venue
   - vision
@@ -15,7 +16,6 @@ labels:
 milestone: 'M4: Поиск на точке'
 dependencies:
   - TASK-45
-  - TASK-31
   - TASK-30
   - TASK-29
 references:
