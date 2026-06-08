@@ -75,6 +75,11 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog venue …",
     argv: S("search-venue.ts"),
   },
+  filter: {
+    desc: "Запрос словами → структурный фильтр (стиль/ABV/цена/формат) по пулу точки (TASK-32)",
+    usage: 'beerlog filter --seller <s> (--q "кислое до 500" | --style sour-wild --price-max 500 …) [--json]',
+    argv: S("bot-filter.ts"),
+  },
   img: {
     desc: "Найти картинку в Яндексе → JSON-кандидаты (ФОЛБЭК, когда нашей обложки нет)",
     usage: 'beerlog img "<пивоварня сорт банка>"',

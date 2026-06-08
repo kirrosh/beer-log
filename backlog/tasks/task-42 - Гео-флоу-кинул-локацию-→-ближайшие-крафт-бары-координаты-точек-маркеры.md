@@ -1,9 +1,10 @@
 ---
 id: TASK-42
 title: 'Гео-флоу: кинул локацию → ближайшие крафт-бары (координаты точек + маркеры)'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-04 17:31'
+updated_date: '2026-06-08'
 labels:
   - venue
   - geo
@@ -31,10 +32,9 @@ priority: medium
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [~] #1 Координаты: поля `lat`/`lng`/`mapUrl` в `VenueInfo`/`registry.json` есть. **Начато наполнение:**
-      2 НН-бара геокожены по адресу через Nominatim (Hophead 56.3294,43.9937; Eric the Red 56.3291,43.9917;
-      `geoVia:nominatim:addr`). Бизнес-имена Nominatim не берёт — путь: имя→адрес (веб) →геокод адреса.
-      Остаётся ~44 точки (отдельный курируемый проход; узкое место = наполнение, см. Description).
+- [x] #1 Координаты: поля `lat`/`lng`/`mapUrl` в `VenueInfo`/`registry.json` есть. **Наполнение завершено
+      (2026-06-08): 46/46 точек реестра геокожены** (путь имя→адрес(веб)→геокод Nominatim). Блокер «у точек нет
+      координат» снят полностью. Дальнейшие точки добираются как непрерывный backfill (memory backfill-not-a-task).
 - [x] #2 reply-keyboard `request_location` → `message.location` — **РАЗБЛОКИРОВАНО**: в форк tg-tabs
       (server.ts) добавлен handler `message:location` → `handleInbound` с `extraMeta {lat,lng}`; геопозиция
       доходит до агента в `meta.lat/lng`. Кнопка — `beerlog buttons --location-button`. Live-радиус считает

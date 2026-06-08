@@ -8,6 +8,7 @@ import { ageDays, freshness, tier } from "../scripts/lib/provenance.ts";
 import { haversineKm, mapUrlFor } from "../scripts/lib/venue-registry.ts";
 import { tasteProfile, type BeerMeta, type Tasting } from "../scripts/lib/venue-personal.ts";
 import { buildMatcher } from "../scripts/lib/catalog-matcher.ts";
+import { parseQuery, runFilter } from "../scripts/lib/query-filter.ts";
 
 const NOW = new Date("2026-06-06T00:00:00Z");
 
@@ -75,6 +76,75 @@ describe("venue-personal: профиль вкуса", () => {
     const m2 = new Map<string, BeerMeta>([["x", { category: "unknown", styleName: null, breweryId: "b", abv: null }]]);
     const p2 = tasteProfile([{ beerId: "x", beer: "X", verdict: "fire" }], m2);
     expect(p2.fireStyles.size).toBe(0);
+  });
+});
+
+describe("query-filter: разбор запроса словами (TASK-32 #1)", () => {
+  test("«кислое до 500» → стиль sour-wild + цена", () => {
+    expect(parseQuery("кислое до 500")).toMatchObject({ style: "sour-wild", priceMax: 500 });
+  });
+  test("«крепкий стаут» → стиль + нижний порог ABV", () => {
+    expect(parseQuery("крепкий стаут")).toMatchObject({ style: "stout-porter", abvMin: 7 });
+  });
+  test("«лёгкое на вынос» → верхний ABV + упакованный формат", () => {
+    const f = parseQuery("лёгкое на вынос");
+    expect(f.abvMax).toBe(5);
+    expect(f.format).toEqual(["can", "bottle"]);
+  });
+  test("«что покрепче но не очень» → диапазон ABV без стиля", () => {
+    expect(parseQuery("что покрепче но не очень")).toMatchObject({ abvMin: 7, abvMax: 9 });
+  });
+  test("явное «до 5%» — это ABV, а не цена", () => {
+    const f = parseQuery("светлое до 5%");
+    expect(f.abvMax).toBe(5);
+    expect(f.priceMax).toBeUndefined();
+  });
+  test("«нейпа на кране» → ipa + draft", () => {
+    const f = parseQuery("нейпа на кране");
+    expect(f.style).toBe("ipa");
+    expect(f.format).toEqual(["draft", "keg"]);
+  });
+});
+
+describe("query-filter: SQL по пулу + деградация (TASK-32 #2)", () => {
+  function seedDb(): Database {
+    const db = new Database(":memory:");
+    db.run("CREATE TABLE breweries (id TEXT PRIMARY KEY, name TEXT)");
+    db.run("CREATE TABLE beers (id TEXT PRIMARY KEY, name TEXT, brewery_id TEXT, abv REAL, style_category TEXT, style_name TEXT)");
+    db.run("CREATE TABLE price_listings (id TEXT PRIMARY KEY, beer_id TEXT, beer_name_raw TEXT, price REAL, format TEXT, seller TEXT, seen_at TEXT, source_type TEXT)");
+    db.run("INSERT INTO breweries VALUES ('br1','Jaws'),('br2','Salden')");
+    db.run("INSERT INTO beers VALUES ('b1','Кислая',  'br1', 4.5, 'sour-wild',    'Gose')");
+    db.run("INSERT INTO beers VALUES ('b2','Стаут',   'br2', 8.5, 'stout-porter', 'Imperial Stout')");
+    db.run("INSERT INTO beers VALUES ('b3','Лёгкий',  'br1', 4.0, 'lager',        'Helles')");
+    // Кислая дешёвая в банке; стаут дорогой на кране; лагер дешёвый в банке
+    db.run("INSERT INTO price_listings VALUES ('l1','b1','Jaws Кислая', 450,'can',  's1','2026-06-01','self')");
+    db.run("INSERT INTO price_listings VALUES ('l2','b2','Salden Стаут',700,'draft','s1','2026-06-01','self')");
+    db.run("INSERT INTO price_listings VALUES ('l3','b3','Jaws Лёгкий', 300,'can',  's1','2026-06-01','self')");
+    return db;
+  }
+  test("точный фильтр: кислое до 500 → одна позиция, без ослабления", () => {
+    const db = seedDb();
+    const r = runFilter(db, "s1", { style: "sour-wild", priceMax: 500 });
+    expect(r.count).toBe(1);
+    expect(r.relaxed).toEqual([]);
+    expect(r.items[0]!.beerId).toBe("b1");
+  });
+  test("деградация: стаут до 500 пуст → ослабляет price, находит дорогой стаут", () => {
+    const db = seedDb();
+    const r = runFilter(db, "s1", { style: "stout-porter", priceMax: 500 });
+    expect(r.relaxed).toContain("price");
+    expect(r.count).toBe(1);
+    expect(r.items[0]!.beerId).toBe("b2");
+  });
+  test("стиль — ядро: держится, пока ослабление format+abv возвращает результат", () => {
+    const db = seedDb();
+    // крепкое (abvMin 9) кислое на кране: нет → роняет format, потом abv → находит кислую, стиль не трогает
+    const r = runFilter(db, "s1", { style: "sour-wild", abvMin: 9, format: ["draft"] });
+    expect(r.relaxed).toContain("format");
+    expect(r.relaxed).toContain("abv");
+    expect(r.relaxed).not.toContain("style"); // ядро сохранено
+    expect(r.count).toBe(1);
+    expect(r.items[0]!.style).toBe("sour-wild");
   });
 });
 

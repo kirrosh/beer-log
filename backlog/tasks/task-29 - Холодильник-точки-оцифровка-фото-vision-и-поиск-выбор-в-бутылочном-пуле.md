@@ -1,10 +1,10 @@
 ---
 id: TASK-29
 title: 'ЭПИК M4: Поиск на точке (Craft Locator) — карта сценариев'
-status: In Progress
+status: Done
 assignee: []
 created_date: '2026-06-04 10:00'
-updated_date: '2026-06-04 12:00'
+updated_date: '2026-06-08'
 milestone: 'M4: Поиск на точке'
 labels:
   - epic
