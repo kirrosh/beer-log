@@ -3,9 +3,10 @@ id: TASK-52
 title: >-
   Канон-слой: data/personal/canon.json + черновые визитки пивоварен по
   дистрибуции
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-11 09:48'
+updated_date: '2026-06-11 10:14'
 labels:
   - personal
   - canon
@@ -26,8 +27,8 @@ priority: high
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Схема data/personal/canon.json в _schema: beerId, beer, canonType (brewery-flagship | style-benchmark | ru-classic), basis (distribution | checkins | research + обоснование одной фразой), note, addedAt
-- [ ] #2 Скрипт canon-draft: для каждой пивоварни с breadth-сигналом топ-сорт по числу продавцов → черновая запись brewery-flagship с basis=distribution (порог отсечки задокументирован)
-- [ ] #3 Дедуп: повторный прогон скрипта не плодит дубли, ручные/research-записи не перетираются
-- [ ] #4 README данных (data/personal/README.md) обновлён: связь canon.json ↔ highlights.json (точка наполняется из канона)
+- [x] #1 Схема data/personal/canon.json в _schema: beerId, beer, canonType (brewery-flagship | style-benchmark | ru-classic), basis (distribution | checkins | research + обоснование одной фразой), note, addedAt
+- [x] #2 Скрипт canon-draft: для каждой пивоварни с breadth-сигналом топ-сорт по числу продавцов → черновая запись brewery-flagship с basis=distribution (порог отсечки задокументирован)
+- [x] #3 Дедуп: повторный прогон скрипта не плодит дубли, ручные/research-записи не перетираются
+- [x] #4 README данных (data/personal/README.md) обновлён: связь canon.json ↔ highlights.json (точка наполняется из канона)
 <!-- AC:END -->

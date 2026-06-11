@@ -11,6 +11,9 @@ import { buildMatcher } from "../scripts/lib/catalog-matcher.ts";
 import { parseQuery, runFilter } from "../scripts/lib/query-filter.ts";
 import { valueSignal, styleValueMedians, type StyleMedian } from "../scripts/lib/value-index.ts";
 import { marketSignal, breadthMap, persistenceForSeller, BREADTH_BROAD } from "../scripts/lib/market-signals.ts";
+import { loadCanon, saveCanon, type CanonEntry, type CanonFile } from "../scripts/lib/canon.ts";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
 
 const NOW = new Date("2026-06-06T00:00:00Z");
 
@@ -242,6 +245,49 @@ describe("market-signals: дистрибуция и персистентност
       }
     } finally {
       db.close();
+    }
+  });
+});
+
+describe("canon: загрузка/сохранение/дедуп (TASK-52)", () => {
+  const entry = (over: Partial<CanonEntry>): CanonEntry => ({
+    beerId: "be_x", beer: "Brew Sort", canonType: "brewery-flagship",
+    basis: "distribution", basisNote: "тест", addedAt: "2026-06-11", ...over,
+  });
+
+  test("loadCanon на отсутствующем файле → пустой канон с дефолтной схемой", () => {
+    const dir = mkdtempSync(`${tmpdir()}/canon-`);
+    try {
+      const f = loadCanon(dir);
+      expect(f.canon).toHaveLength(0);
+      expect(f.schema).toBeTruthy();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("saveCanon → loadCanon round-trip сохраняет записи и порядок полей", () => {
+    const dir = mkdtempSync(`${tmpdir()}/canon-`);
+    try {
+      const file: CanonFile = { schema: { what: "t" }, canon: [entry({}), entry({ beerId: null, beer: "Вне каталога", basis: "research" })] };
+      saveCanon(file, dir);
+      const back = loadCanon(dir);
+      expect(back.canon).toHaveLength(2);
+      expect(back.canon[0]!.canonType).toBe("brewery-flagship");
+      expect(back.canon[1]!.beerId).toBeNull(); // null beerId сохраняется (вне каталога)
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("чистка: пустые опц. поля (note) отбрасываются при сериализации", () => {
+    const dir = mkdtempSync(`${tmpdir()}/canon-`);
+    try {
+      saveCanon({ schema: {}, canon: [entry({ note: "" })] }, dir);
+      const back = loadCanon(dir);
+      expect("note" in back.canon[0]!).toBe(false);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
     }
   });
 });

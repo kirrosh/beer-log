@@ -15,6 +15,16 @@
 ## highlights.json — топовое НА ТОЧКЕ (редакторское)
 Пара `(venue, beerId)` + `badge` + `reason`. Это «рекомендуем тут», НЕ личный вкус (тот в tastings.favorite). `venue` = seller точки из `shops.json` (напр. `beermug-nn/gagarina-118`). Из highlights собирается контент-юнит «крафт-локатор» (что брать в точке сегодня) — формат на потом.
 
+## canon.json — что маст-трай (глобальный канон)
+Ось **«канонично»** (известность как ФАКТ, не оценка) — отдельно и от `tastings` (мой вкус), и от `highlights` (топ на конкретной точке). Три типа `canonType`: `brewery-flagship` (визитка пивоварни), `style-benchmark` (эталон стиля в РФ), `ru-classic` (знаковый сорт рос. крафта). Поле `basis` — на чём держится каноничность: `distribution` (по числу продавцов), `checkins` (Untappd), `research` (курация). Поля и пример — в `_schema` файла.
+
+Наполнение:
+- distribution-черновики визиток генерит `scripts/canon-draft.ts` (топ-сорт пивоварни по числу продавцов, порог breadth ≥ 3). Идемпотентен, **не перетирает** записи с `basis` = research/checkins (курация приоритетна — TASK-53/59/60).
+- research/checkins-записи правят агент и скиллы (deep-research эталонов/классики, шаг «флагман» в brewery-research, Untappd-чекины).
+
+### Связь canon.json ↔ highlights.json
+Канон — **глобальный** (что маст-трай вообще), highlights — **на точке** (что взять здесь сегодня). Направление: highlights наполняется ИЗ канона — для точки берём пересечение её пула с `canon.json` (незакрытые визитки/эталоны/классика → бейджи `must-try`). Канон первичен и не зависит от точки; highlights — его проекция на конкретный тап-лист (см. интент «что маст-трай здесь», TASK-54).
+
 ## Связи
 - `beerId` → `beers.id` в `catalog.sqlite`
 - `venue` → `ingestConfig.venues[].seller` в `data/pipeline/shops.json`
