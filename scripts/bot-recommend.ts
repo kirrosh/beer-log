@@ -10,7 +10,7 @@
  * Деградация при пустом профиле (<2 дегустаций): fallback на highlights + свежесть/наличие.
  */
 import { Database } from "bun:sqlite";
-import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile } from "./lib/venue-personal.ts";
+import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile, tasteStats, tasteAssessment } from "./lib/venue-personal.ts";
 import { ageDays, freshness } from "./lib/provenance.ts";
 import { styleValueMedians, valueSignal, type ValueSignal } from "./lib/value-index.ts";
 import { breadthMap, persistenceForSeller, marketSignal, type MarketAssessment } from "./lib/market-signals.ts";
@@ -39,6 +39,7 @@ const canonByBeer = new Map<string, { canonType: CanonType; basis: string }>();
 for (const c of loadCanon().canon) if (c.beerId) canonByBeer.set(c.beerId, { canonType: c.canonType, basis: c.basis });
 const tasteMeta = loadBeerMeta(db, tastings.map((t) => t.beerId));
 const { fireStyles, goodStyles, favBreweries, tastedSet, repeatable } = tasteProfile(tastings, tasteMeta);
+const stats = tasteStats(tastings, tasteMeta); // профиль v2: hit-rate/ABV-зона/анти-сигналы (TASK-57)
 const profileThin = tastings.length < 2;
 
 // бейдж highlight по beerId на этой точке (для new-ветки и fallback)
@@ -83,6 +84,7 @@ type Rec = {
   breadth: number | null;           // в скольких продавцах держат сорт (TASK-51)
   market: MarketAssessment;         // бонус+причины дистрибуции/персистентности (для fallback-ветки)
   canonOpen: { canonType: CanonType; basis: string } | null; // незакрытый канон на точке (TASK-54)
+  tasteReasons: string[];           // hit-rate (✓) + анти-сигналы (⚠) профиля v2 (TASK-57)
 };
 
 const recs: Rec[] = pool.map((p) => {
@@ -129,6 +131,15 @@ const recs: Rec[] = pool.map((p) => {
   if (branch === "new") score += market.bonus;
   reasons.push(...market.reasons);
 
+  // Профиль v2: hit-rate (✓) + анти-сигналы (⚠ прошлые 👎 / «не возьму снова» / ABV вне зоны).
+  // Анти-причины показываем у ЛЮБОЙ ветки — система, которая отговаривает, это половина вэлью.
+  const taste = tasteAssessment(
+    { beerId: p.beerId, breweryId: p.breweryId, breweryName: p.breweryName, category: cat === "unknown" ? null : cat, abv: meta?.abv ?? null },
+    stats,
+  );
+  if (branch === "new") score += taste.bonus;
+  reasons.push(...taste.reasons, ...taste.antiReasons);
+
   // незакрытый канон на точке: не пробовал И сорт в canon.json
   const canonOpen = (!tasted && p.beerId && canonByBeer.has(p.beerId)) ? canonByBeer.get(p.beerId)! : null;
 
@@ -138,6 +149,7 @@ const recs: Rec[] = pool.map((p) => {
     brewery: p.breweryName, style: meta?.style ?? null, abv: meta?.abv ?? null,
     format: p.format, price: p.price, image: meta?.image ?? null, branch, score: Math.round(score * 100) / 100, reasons,
     seenAt: p.seenAt, stale: fresh.stale, value, breadth: breadthN ?? null, market, canonOpen,
+    tasteReasons: [...taste.reasons, ...taste.antiReasons],
   };
 });
 
@@ -164,8 +176,9 @@ if (profileThin || !hasSignal) {
         + (r.value?.bonus ?? 0) + r.market.bonus + (r.canonOpen ? 0.5 : 0);
       const reasons = r.canonOpen ? [CANON_RU[r.canonOpen.canonType]] : (hl ? [BADGE_RU[hl.badge] ?? hl.badge] : ["в наличии на точке"]);
       if (r.value?.reason) reasons.push(r.value.reason);
-      reasons.push(...r.market.reasons);
-      return { ...r, branch: "discover" as const, score: Math.round(s * 100) / 100, reasons };
+      reasons.push(...r.market.reasons, ...r.tasteReasons);
+      const sTaste = s + (r.tasteReasons.some((x) => x.startsWith("⚠")) ? -0.2 : 0); // анти-сигнал топит и в fallback
+      return { ...r, branch: "discover" as const, score: Math.round(sTaste * 100) / 100, reasons };
     })
     .sort((a, b) => b.score - a.score || (b.price != null ? 1 : 0) - (a.price != null ? 1 : 0))
     .slice(0, limit);

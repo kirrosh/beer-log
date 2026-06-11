@@ -10,7 +10,7 @@
  * Матчинг/запись НЕ дублируем — стиль берём из БД по beerId, фолбэк — категория из имени.
  */
 import { Database } from "bun:sqlite";
-import { loadPersonal, loadBeerMeta, type Tasting, type BeerMeta } from "./lib/venue-personal.ts";
+import { loadPersonal, loadBeerMeta, tasteStats, TASTE_OBS, type Tasting, type BeerMeta } from "./lib/venue-personal.ts";
 import { categorizeStyle } from "@beer-log/catalog-core";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
@@ -30,7 +30,6 @@ const { tastings } = loadPersonal();
 
 // стиль/ABV по beerId из каталога (общий loadBeerMeta), фолбэк — категория из имени дегустации.
 const metaById = loadBeerMeta(db, tastings.map((t) => t.beerId));
-db.close();
 
 const metaOf = (t: Tasting): BeerMeta => {
   if (t.beerId && metaById.has(t.beerId)) return metaById.get(t.beerId)!;
@@ -78,6 +77,30 @@ for (const t of scope) {
   }
 }
 
+// ── профиль v2: hit-rate / ABV-зона / cost-per-🔥 (TASK-57) ───────────────────────
+const stats = tasteStats(scope, metaById);
+// имена пивоварен для hit-rate (резолвим до закрытия БД); только прошедшие порог наблюдений
+const hitBreweryIds = [...stats.byBrewery].filter(([, h]) => h.n >= TASTE_OBS.brewery).map(([id]) => id);
+const brewName = new Map<string, string>();
+if (hitBreweryIds.length) {
+  const rows = db.query(`SELECT id, name FROM breweries WHERE id IN (${hitBreweryIds.map(() => "?").join(",")})`)
+    .all(...hitBreweryIds) as { id: string; name: string }[];
+  for (const r of rows) brewName.set(r.id, r.name);
+}
+db.close();
+
+const hitRate = {
+  byBrewery: hitBreweryIds
+    .map((id) => ({ brewery: brewName.get(id) ?? id, ...stats.byBrewery.get(id)! }))
+    .sort((a, b) => b.fire - a.fire || b.n - a.n),
+  byStyle: [...stats.byStyle].filter(([, h]) => h.n >= TASTE_OBS.style)
+    .map(([category, h]) => ({ category, ...h }))
+    .sort((a, b) => b.fire - a.fire || b.n - a.n),
+  byDescriptor: [...stats.byDescriptor].filter(([, h]) => h.n >= 2) // дескриптор: ≥2 наблюдения
+    .map(([descriptor, h]) => ({ descriptor, ...h }))
+    .sort((a, b) => b.fire - a.fire || b.n - a.n),
+};
+
 const byCount = <T extends { count: number }>(a: T, b: T) => b.count - a.count;
 const card = (t: Tasting) => ({ beer: t.beer, style: metaOf(t).styleName, venue: t.venue ?? null });
 
@@ -94,6 +117,10 @@ const out = {
   fires: scope.filter((t) => t.verdict === "fire").map(card),
   wouldRepeat: scope.filter((t) => t.wouldRepeat).map(card),
   spend: { total: spendTotal, count: spendCount, avg: spendCount ? Math.round(spendTotal / spendCount) : null },
+  // профиль v2: hit-rate по пивоварне/стилю, ABV-зона 🔥, средняя цена огонька (null = мало наблюдений)
+  hitRate,
+  abvZone: stats.abvZone,
+  costPerFire: stats.costPerFire,
   venues: [...venueAgg.entries()]
     .map(([venue, v]) => ({ venue, ...v }))
     .sort(byCount),

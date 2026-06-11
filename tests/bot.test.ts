@@ -6,7 +6,7 @@ import { existsSync } from "node:fs";
 import { Database } from "bun:sqlite";
 import { ageDays, freshness, tier } from "../scripts/lib/provenance.ts";
 import { haversineKm, mapUrlFor } from "../scripts/lib/venue-registry.ts";
-import { tasteProfile, type BeerMeta, type Tasting } from "../scripts/lib/venue-personal.ts";
+import { tasteProfile, tasteStats, tasteAssessment, type BeerMeta, type Tasting } from "../scripts/lib/venue-personal.ts";
 import { buildMatcher } from "../scripts/lib/catalog-matcher.ts";
 import { parseQuery, runFilter } from "../scripts/lib/query-filter.ts";
 import { valueSignal, styleValueMedians, type StyleMedian } from "../scripts/lib/value-index.ts";
@@ -246,6 +246,72 @@ describe("market-signals: дистрибуция и персистентност
     } finally {
       db.close();
     }
+  });
+});
+
+describe("профиль вкуса v2: hit-rate / ABV-зона / cost-per-🔥 / анти-сигналы (TASK-57)", () => {
+  const meta = (over: Partial<BeerMeta>): BeerMeta => ({ category: "ipa", styleName: "IPA", breweryId: "br_a", abv: 6, ...over });
+  const t = (over: Partial<Tasting>): Tasting => ({ beerId: "be_x", beer: "B Sort", ...over });
+
+  test("tasteStats: noRepeat, hit-rate, ABV-зона и cost подавлены при малом N", () => {
+    const tastings: Tasting[] = [
+      t({ beerId: "be_1", verdict: "fire", pricePaid: 400 }),
+      t({ beerId: "be_2", verdict: "good", wouldRepeat: false }),
+    ];
+    const m = new Map<string, BeerMeta>([["be_1", meta({})], ["be_2", meta({})]]);
+    const s = tasteStats(tastings, m);
+    expect(s.noRepeat.has("be_2")).toBe(true);
+    expect(s.byBrewery.get("br_a")).toMatchObject({ n: 2, fire: 1, good: 1 });
+    expect(s.abvZone).toBeNull();    // <3 🔥 → нет зоны
+    expect(s.costPerFire).toBeNull(); // <3 🔥 с ценой → нет
+  });
+
+  test("tasteStats: ABV-зона и cost считаются при ≥3 🔥", () => {
+    const m = new Map<string, BeerMeta>();
+    const tastings: Tasting[] = [5, 6.5, 8].map((abv, i) => {
+      const id = `be_${i}`;
+      m.set(id, meta({ abv }));
+      return t({ beerId: id, verdict: "fire", pricePaid: 300 + i * 100 });
+    });
+    const s = tasteStats(tastings, m);
+    expect(s.abvZone).toMatchObject({ lo: 5, hi: 8, n: 3 });
+    expect(s.costPerFire).toMatchObject({ avg: 400, n: 3 });
+  });
+
+  test("assessment: «не возьму снова» — жёсткий минус + ⚠", () => {
+    const s = tasteStats([t({ beerId: "be_2", verdict: "good", wouldRepeat: false })], new Map([["be_2", meta({})]]));
+    const a = tasteAssessment({ beerId: "be_2", breweryId: "br_a", category: "ipa", abv: 6 }, s);
+    expect(a.bonus).toBeLessThan(0);
+    expect(a.antiReasons.join(" ")).toContain("не возьму снова");
+  });
+
+  test("assessment: пивоварня 2/2 🔥 → ✓ hit-rate; пивоварня 2×👎 → ⚠", () => {
+    const m = new Map<string, BeerMeta>([["be_1", meta({ breweryId: "br_good" })], ["be_2", meta({ breweryId: "br_good" })], ["be_3", meta({ breweryId: "br_bad" })], ["be_4", meta({ breweryId: "br_bad" })]]);
+    const s = tasteStats([
+      t({ beerId: "be_1", verdict: "fire" }), t({ beerId: "be_2", verdict: "fire" }),
+      t({ beerId: "be_3", verdict: "pass" }), t({ beerId: "be_4", verdict: "pass" }),
+    ], m);
+    const good = tasteAssessment({ beerId: "be_new", breweryId: "br_good", breweryName: "Jaws", category: "ipa", abv: 6 }, s);
+    expect(good.reasons.join(" ")).toContain("🔥");
+    expect(good.bonus).toBeGreaterThan(0);
+    const bad = tasteAssessment({ beerId: "be_new2", breweryId: "br_bad", breweryName: "Meh", category: "ipa", abv: 6 }, s);
+    expect(bad.antiReasons.join(" ")).toContain("👎");
+    expect(bad.bonus).toBeLessThan(0);
+  });
+
+  test("assessment: ABV вне 🔥-зоны → ⚠ (когда зона известна)", () => {
+    const m = new Map<string, BeerMeta>();
+    const tastings: Tasting[] = [5, 5.5, 6].map((abv, i) => { const id = `be_${i}`; m.set(id, meta({ abv })); return t({ beerId: id, verdict: "fire" }); });
+    const s = tasteStats(tastings, m);
+    const strong = tasteAssessment({ beerId: "be_z", breweryId: null, category: "ipa", abv: 10 }, s);
+    expect(strong.antiReasons.join(" ")).toContain("крепче");
+  });
+
+  test("деградация: пивоварня с 1 наблюдением → сигнал не применяется", () => {
+    const s = tasteStats([t({ beerId: "be_1", verdict: "fire" })], new Map([["be_1", meta({})]]));
+    const a = tasteAssessment({ beerId: "be_new", breweryId: "br_a", category: "ipa", abv: 6 }, s);
+    expect(a.reasons).toHaveLength(0);
+    expect(a.antiReasons).toHaveLength(0);
   });
 });
 

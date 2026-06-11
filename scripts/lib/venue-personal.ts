@@ -96,6 +96,125 @@ export function tasteProfile(tastings: Tasting[], meta: Map<string, BeerMeta>): 
   return { fireStyles, goodStyles, favBreweries, tastedSet, repeatable };
 }
 
+// ── профиль вкуса v2: hit-rate, ABV-зона, cost-per-🔥, анти-сигналы (TASK-57, M5) ────
+// От категорий (tasteProfile) к измеримым величинам. Личная статистика лучше любого внешнего
+// рейтинга, НО только при достаточном N — ниже порога наблюдений сигнал не применяется (холодный
+// старт: 4 дегустации не дают зоны/cost). Единый источник для bot-recommend/profile/lookup.
+
+/** Пороги наблюдений: ниже — сигнал шумный, не применяем (честная деградация при малом N). */
+export const TASTE_OBS = {
+  brewery: 2,   // hit-rate пивоварни — нужно ≥2 дегустации этой пивоварни
+  style: 3,     // hit-rate стиля — ≥3 дегустации стиля
+  passMin: 2,   // «не зашло» как анти-сигнал — ≥2 вердикта pass (и ни одного fire)
+  abvFires: 3,  // ABV-зона — ≥3 🔥 с известным ABV
+  costFires: 3, // cost-per-🔥 — ≥3 🔥 с известной ценой
+};
+
+export type Hit = { n: number; fire: number; good: number; pass: number };
+export type TasteStats = {
+  byBrewery: Map<string, Hit>;        // hit-rate по breweryId
+  byStyle: Map<string, Hit>;          // hit-rate по style_category
+  byDescriptor: Map<string, Hit>;     // hit-rate по личному дескриптору (только для профиля #8 —
+                                      //   у каталожных сортов дескрипторов нет, в скоринг не идёт)
+  abvZone: { lo: number; hi: number; n: number } | null; // диапазон ABV, где живут 🔥
+  costPerFire: { avg: number; n: number } | null;        // средняя цена 🔥 (₽)
+  noRepeat: Set<string>;              // beerId с wouldRepeat===false (жёсткий анти-сигнал)
+};
+
+function bump(m: Map<string, Hit>, key: string, v?: Verdict): void {
+  const h = m.get(key) ?? { n: 0, fire: 0, good: 0, pass: 0 };
+  h.n++;
+  if (v === "fire") h.fire++; else if (v === "good") h.good++; else if (v === "pass") h.pass++;
+  m.set(key, h);
+}
+
+/** Посчитать измеримый профиль вкуса. Категория для null-beerId берётся из имени (categorizeStyle). */
+export function tasteStats(tastings: Tasting[], meta: Map<string, BeerMeta>): TasteStats {
+  const byBrewery = new Map<string, Hit>();
+  const byStyle = new Map<string, Hit>();
+  const byDescriptor = new Map<string, Hit>();
+  const abvFires: number[] = [];
+  const fireCosts: number[] = [];
+  const noRepeat = new Set<string>();
+
+  for (const t of tastings) {
+    const m = t.beerId ? meta.get(t.beerId) : undefined;
+    const cat = m && m.category !== "unknown" ? m.category : categorizeStyle(t.beer ?? "").category;
+    if (m?.breweryId) bump(byBrewery, m.breweryId, t.verdict);
+    if (cat && cat !== "unknown") bump(byStyle, cat, t.verdict);
+    for (const d of t.descriptors ?? []) bump(byDescriptor, d, t.verdict);
+    if (t.verdict === "fire" && typeof m?.abv === "number") abvFires.push(m.abv);
+    if (t.verdict === "fire" && typeof t.pricePaid === "number") fireCosts.push(t.pricePaid);
+    if (t.wouldRepeat === false && t.beerId) noRepeat.add(t.beerId);
+  }
+
+  const abvZone = abvFires.length >= TASTE_OBS.abvFires
+    ? { lo: Math.min(...abvFires), hi: Math.max(...abvFires), n: abvFires.length }
+    : null;
+  const costPerFire = fireCosts.length >= TASTE_OBS.costFires
+    ? { avg: Math.round(fireCosts.reduce((a, b) => a + b, 0) / fireCosts.length), n: fireCosts.length }
+    : null;
+
+  return { byBrewery, byStyle, byDescriptor, abvZone, costPerFire, noRepeat };
+}
+
+export type TasteAssessmentInput = {
+  beerId: string | null; breweryId: string | null; breweryName?: string | null;
+  category: string | null; abv: number | null;
+};
+export type TasteAssessment = { bonus: number; reasons: string[]; antiReasons: string[] };
+
+/**
+ * Оценить кандидата против профиля v2: бонус скоринга + ✓-причины (hit-rate) + ⚠-анти-причины
+ * (прошлые 👎, «не возьму снова», ABV вне зоны). Анти-сигналы обязательны — система, которая
+ * отговаривает, это половина вэлью. Сигналы подавляются ниже порога наблюдений (TASTE_OBS).
+ */
+export function tasteAssessment(input: TasteAssessmentInput, stats: TasteStats): TasteAssessment {
+  const reasons: string[] = [];
+  const antiReasons: string[] = [];
+  let bonus = 0;
+
+  // жёсткий анти-сигнал: этот самый сорт помечен «не возьму снова» («за свои норм» ≠ брать снова)
+  if (input.beerId && stats.noRepeat.has(input.beerId)) {
+    bonus -= 0.5;
+    antiReasons.push("⚠ ты отметил «не возьму снова»");
+  }
+
+  // hit-rate пивоварни
+  const hb = input.breweryId ? stats.byBrewery.get(input.breweryId) : undefined;
+  if (hb && hb.n >= TASTE_OBS.brewery) {
+    const who = input.breweryName ?? "эта пивоварня";
+    if (hb.fire >= 1 && hb.pass === 0) {
+      bonus += 0.3;
+      reasons.push(`${who}: ${hb.fire}/${hb.n} 🔥`);
+    } else if (hb.pass >= TASTE_OBS.passMin && hb.fire === 0) {
+      bonus -= 0.3;
+      antiReasons.push(`⚠ у «${who}» ты ${hb.pass}× 👎`);
+    }
+  }
+
+  // hit-rate стиля — только явное «не зашло» как анти (положительное уже даёт tasteProfile.fireStyles)
+  const hs = input.category ? stats.byStyle.get(input.category) : undefined;
+  if (hs && hs.n >= TASTE_OBS.style && hs.pass >= TASTE_OBS.passMin && hs.fire === 0) {
+    bonus -= 0.2;
+    antiReasons.push(`⚠ стиль ${input.category} тебе не заходит (${hs.pass}×👎)`);
+  }
+
+  // ABV-комфорт-зона: кандидат заметно вне диапазона 🔥 — мягкий штраф
+  if (stats.abvZone && typeof input.abv === "number") {
+    const { lo, hi } = stats.abvZone;
+    if (input.abv > hi + 0.5) {
+      bonus -= 0.15;
+      antiReasons.push(`⚠ крепче твоей 🔥-зоны (${input.abv}% vs ${lo}–${hi}%)`);
+    } else if (input.abv < lo - 0.5) {
+      bonus -= 0.1;
+      antiReasons.push(`⚠ слабее твоей 🔥-зоны (${input.abv}% vs ${lo}–${hi}%)`);
+    }
+  }
+
+  return { bonus, reasons, antiReasons };
+}
+
 // ── запись дегустаций (TASK-46, D1) ─────────────────────────────────────────────
 // Парный писатель к loadPersonal: дозаписывает одну дегустацию в tastings.json, сохраняя _schema
 // и формат «одна запись на строку». Идемпотентен по ключу (beerId|raw-имя) + дата + точка: повтор

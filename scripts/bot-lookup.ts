@@ -13,7 +13,7 @@ import { Database } from "bun:sqlite";
 import { buildMatcher } from "./lib/catalog-matcher.ts";
 import { nameSimilarity } from "@beer-log/catalog-core";
 import { venueIndex, HOME_CITY, type VenueInfo } from "./lib/venue-registry.ts";
-import { loadPersonal, type Tasting } from "./lib/venue-personal.ts";
+import { loadPersonal, loadBeerMeta, tasteStats, tasteAssessment, type Tasting } from "./lib/venue-personal.ts";
 import { freshness } from "./lib/provenance.ts";
 import { styleValueMedians, valueSignal } from "./lib/value-index.ts";
 
@@ -194,6 +194,19 @@ const verdict: Tasting | null =
   (canonical ? tastings.find((t) => nameSimilarity(t.beer, canonical!.name) >= 0.6) : undefined) ||
   null;
 
+// 3b. Профиль v2 (#9): анти-сигналы и hit-rate для канон-сорта + контекст cost-per-🔥 (TASK-57).
+const tasteMeta = loadBeerMeta(db, tastings.map((t) => t.beerId));
+const stats = tasteStats(tastings, tasteMeta);
+const ta = canonical
+  ? tasteAssessment(
+      { beerId: canonical.id, breweryId: canonical.brewery_id, breweryName: brewery?.name ?? null, category: canonical.style_category, abv: canonical.abv },
+      stats,
+    )
+  : null;
+const taste = ta && (ta.reasons.length || ta.antiReasons.length || stats.costPerFire)
+  ? { reasons: ta.reasons, antiReasons: ta.antiReasons, costPerFire: stats.costPerFire }
+  : null;
+
 // 4. Компактный JSON (без отступов — меньше токенов агенту).
 const out = {
   query,
@@ -213,6 +226,7 @@ const out = {
     verdict: verdict.verdict, favorite: verdict.favorite, wouldRepeat: verdict.wouldRepeat,
     venue: verdict.venue, format: verdict.format, descriptors: verdict.descriptors,
   },
+  taste, // профиль v2: ✓ hit-rate / ⚠ анти-сигналы / cost-per-🔥 (для вердикта «стоит ли брать»)
 };
 console.log(JSON.stringify(out));
 db.close();
