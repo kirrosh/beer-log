@@ -13,6 +13,7 @@ import { Database } from "bun:sqlite";
 import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile } from "./lib/venue-personal.ts";
 import { ageDays, freshness } from "./lib/provenance.ts";
 import { styleValueMedians, valueSignal, type ValueSignal } from "./lib/value-index.ts";
+import { breadthMap, persistenceForSeller, marketSignal, type MarketAssessment } from "./lib/market-signals.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 
@@ -46,16 +47,19 @@ for (const h of highlights) {
 const vp = buildVenuePersonal(db, seller);
 const pool = vp.pool;
 const poolIds = pool.map((p) => p.beerId).filter(Boolean) as string[];
-type Meta = { image: string | null; abv: number | null; style: string | null };
+type Meta = { image: string | null; abv: number | null; style: string | null; slug: string | null };
 const metaById = new Map<string, Meta>();
 if (poolIds.length) {
   const rows = db.query(
-    `SELECT id, image_url, abv, style_name FROM beers WHERE id IN (${poolIds.map(() => "?").join(",")})`,
-  ).all(...poolIds) as { id: string; image_url: string | null; abv: number | null; style_name: string | null }[];
-  for (const r of rows) metaById.set(r.id, { image: r.image_url, abv: r.abv, style: r.style_name });
+    `SELECT id, image_url, abv, style_name, slug FROM beers WHERE id IN (${poolIds.map(() => "?").join(",")})`,
+  ).all(...poolIds) as { id: string; image_url: string | null; abv: number | null; style_name: string | null; slug: string | null }[];
+  for (const r of rows) metaById.set(r.id, { image: r.image_url, abv: r.abv, style: r.style_name, slug: r.slug });
 }
 // Value Index: медианы ₽/литр по стилям — рыночный сигнал «выгодно/переплата» (TASK-50)
 const valueMedians = styleValueMedians(db);
+// Рыночные сигналы: дистрибуция (по всему каталогу) + персистентность пар на этой точке (TASK-51)
+const breadth = breadthMap(db);
+const persistence = persistenceForSeller(db, seller);
 db.close();
 
 const HL_WEIGHT: Record<string, number> = { "must-try": 0.5, "hidden-gem": 0.4, value: 0.3, seasonal: 0.3 };
@@ -72,6 +76,8 @@ type Rec = {
   branch: "repeat" | "new" | "discover"; score: number; reasons: string[];
   seenAt: string; stale: boolean;   // свежесть наличия — кран ротируется, предупреждаем у полки
   value: ValueSignal | null;        // ₽/литр vs медиана стиля (TASK-50)
+  breadth: number | null;           // в скольких продавцах держат сорт (TASK-51)
+  market: MarketAssessment;         // бонус+причины дистрибуции/персистентности (для fallback-ветки)
 };
 
 const recs: Rec[] = pool.map((p) => {
@@ -83,6 +89,10 @@ const recs: Rec[] = pool.map((p) => {
 
   // Value Index: ₽/литр этого листинга против медианы стиля (объективный денежный сигнал)
   const value = valueSignal({ price: p.price, volumeMl: p.volumeMl, category: cat }, valueMedians);
+  // Рыночные сигналы: дистрибуция сорта + персистентность пары (сорт, точка)
+  const breadthN = p.beerId ? breadth.get(p.beerId) : undefined;
+  const persist = meta?.slug ? persistence.get(meta.slug) : undefined;
+  const market = marketSignal(breadthN, persist);
 
   const tasted = !!p.beerId && tastedSet.has(p.beerId);
   if (tasted && p.beerId && repeatable.has(p.beerId)) {
@@ -105,19 +115,21 @@ const recs: Rec[] = pool.map((p) => {
     reasons.push("уже пробовал");
   }
 
-  // value влияет на скоринг только для «нового» (не двигаем приоритет повторов), но фразу
-  // (выгодно/переплата) показываем у любой ветки — честный денежный аргумент/минус у полки
+  // value/рынок влияют на скоринг только для «нового» (не двигаем приоритет повторов), но фразы
+  // (выгодно/переплата, дистрибуция, якорь) показываем у любой ветки — честные аргументы у полки
   if (value) {
     if (branch === "new") score += value.bonus;
     if (value.reason) reasons.push(value.reason);
   }
+  if (branch === "new") score += market.bonus;
+  reasons.push(...market.reasons);
 
   const fresh = freshness(p.seenAt);
   return {
     beerId: p.beerId, beer: p.breweryName ? `${p.breweryName} ${p.beerName}` : p.beerName,
     brewery: p.breweryName, style: meta?.style ?? null, abv: meta?.abv ?? null,
     format: p.format, price: p.price, image: meta?.image ?? null, branch, score: Math.round(score * 100) / 100, reasons,
-    seenAt: p.seenAt, stale: fresh.stale, value,
+    seenAt: p.seenAt, stale: fresh.stale, value, breadth: breadthN ?? null, market,
   };
 });
 
@@ -130,9 +142,11 @@ if (profileThin || !hasSignal) {
   chosen = recs
     .map((r) => {
       const hl = r.beerId ? hlBadge.get(r.beerId) : undefined;
-      const s = (hl ? (HL_WEIGHT[hl.badge] ?? 0.3) : 0) + (r.price != null ? 0.05 : 0) + (r.value?.bonus ?? 0);
+      const s = (hl ? (HL_WEIGHT[hl.badge] ?? 0.3) : 0) + (r.price != null ? 0.05 : 0)
+        + (r.value?.bonus ?? 0) + r.market.bonus;
       const reasons = hl ? [BADGE_RU[hl.badge] ?? hl.badge] : ["в наличии на точке"];
       if (r.value?.reason) reasons.push(r.value.reason);
+      reasons.push(...r.market.reasons);
       return { ...r, branch: "discover" as const, score: Math.round(s * 100) / 100, reasons };
     })
     .sort((a, b) => b.score - a.score || (b.price != null ? 1 : 0) - (a.price != null ? 1 : 0))

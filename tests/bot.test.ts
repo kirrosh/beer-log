@@ -10,6 +10,7 @@ import { tasteProfile, type BeerMeta, type Tasting } from "../scripts/lib/venue-
 import { buildMatcher } from "../scripts/lib/catalog-matcher.ts";
 import { parseQuery, runFilter } from "../scripts/lib/query-filter.ts";
 import { valueSignal, styleValueMedians, type StyleMedian } from "../scripts/lib/value-index.ts";
+import { marketSignal, breadthMap, persistenceForSeller, BREADTH_BROAD } from "../scripts/lib/market-signals.ts";
 
 const NOW = new Date("2026-06-06T00:00:00Z");
 
@@ -190,6 +191,54 @@ describe("value-index: ₽/литр против медианы стиля (TASK
       for (const sm of m.values()) {
         expect(sm.n).toBeGreaterThanOrEqual(8); // VALUE_MIN_SAMPLE
         expect(sm.median).toBeGreaterThan(0);
+      }
+    } finally {
+      db.close();
+    }
+  });
+});
+
+describe("market-signals: дистрибуция и персистентность (TASK-51)", () => {
+  test("широкая дистрибуция (≥порог) → бонус + причина «широко берут»", () => {
+    const a = marketSignal(BREADTH_BROAD, undefined);
+    expect(a.bonus).toBeGreaterThan(0);
+    expect(a.reasons.join(" ")).toContain("широко берут");
+  });
+
+  test("breadth==1 → причина «только здесь» (редкость)", () => {
+    const a = marketSignal(1, undefined);
+    expect(a.bonus).toBeGreaterThan(0);
+    expect(a.reasons.join(" ")).toContain("только здесь");
+  });
+
+  test("средняя дистрибуция без персистентности → молчит (нейтрально)", () => {
+    const a = marketSignal(3, { days: 0, slices: 1 });
+    expect(a.bonus).toBe(0);
+    expect(a.reasons).toHaveLength(0);
+  });
+
+  test("персистентность ≥порога срезов → причина «якорь точки»", () => {
+    const a = marketSignal(3, { days: 60, slices: 3 });
+    expect(a.reasons.join(" ")).toContain("якорь");
+  });
+
+  test("breadthMap/persistenceForSeller на реальном каталоге (read-only)", () => {
+    const DB = "data/catalog.sqlite";
+    if (!existsSync(DB)) return;
+    const db = new Database(DB, { readonly: true });
+    try {
+      const bm = breadthMap(db);
+      expect(bm.size).toBeGreaterThan(0);
+      for (const v of bm.values()) expect(v).toBeGreaterThanOrEqual(1);
+      // персистентность по любой точке: текущая база — один срез, span=0/slices=1, без ошибок
+      const seller = (db.query("SELECT seller FROM price_listings WHERE seller IS NOT NULL LIMIT 1")
+        .get() as { seller: string } | null)?.seller;
+      if (seller) {
+        const pm = persistenceForSeller(db, seller);
+        for (const p of pm.values()) {
+          expect(p.slices).toBeGreaterThanOrEqual(1);
+          expect(p.days).toBeGreaterThanOrEqual(0);
+        }
       }
     } finally {
       db.close();
