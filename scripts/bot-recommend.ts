@@ -14,6 +14,7 @@ import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile } from "./
 import { ageDays, freshness } from "./lib/provenance.ts";
 import { styleValueMedians, valueSignal, type ValueSignal } from "./lib/value-index.ts";
 import { breadthMap, persistenceForSeller, marketSignal, type MarketAssessment } from "./lib/market-signals.ts";
+import { loadCanon, type CanonType } from "./lib/canon.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 
@@ -33,6 +34,9 @@ const db = new Database(DB_PATH, { readonly: true });
 
 // ── профиль вкуса из tastings (общая lib-логика) ───────────────────────────────────
 const { tastings, highlights } = loadPersonal();
+// Канон («что маст-трай»): незакрытые визитки/эталоны с точки получают приоритет в discover-слотах
+const canonByBeer = new Map<string, { canonType: CanonType; basis: string }>();
+for (const c of loadCanon().canon) if (c.beerId) canonByBeer.set(c.beerId, { canonType: c.canonType, basis: c.basis });
 const tasteMeta = loadBeerMeta(db, tastings.map((t) => t.beerId));
 const { fireStyles, goodStyles, favBreweries, tastedSet, repeatable } = tasteProfile(tastings, tasteMeta);
 const profileThin = tastings.length < 2;
@@ -78,6 +82,7 @@ type Rec = {
   value: ValueSignal | null;        // ₽/литр vs медиана стиля (TASK-50)
   breadth: number | null;           // в скольких продавцах держат сорт (TASK-51)
   market: MarketAssessment;         // бонус+причины дистрибуции/персистентности (для fallback-ветки)
+  canonOpen: { canonType: CanonType; basis: string } | null; // незакрытый канон на точке (TASK-54)
 };
 
 const recs: Rec[] = pool.map((p) => {
@@ -124,27 +129,40 @@ const recs: Rec[] = pool.map((p) => {
   if (branch === "new") score += market.bonus;
   reasons.push(...market.reasons);
 
+  // незакрытый канон на точке: не пробовал И сорт в canon.json
+  const canonOpen = (!tasted && p.beerId && canonByBeer.has(p.beerId)) ? canonByBeer.get(p.beerId)! : null;
+
   const fresh = freshness(p.seenAt);
   return {
     beerId: p.beerId, beer: p.breweryName ? `${p.breweryName} ${p.beerName}` : p.beerName,
     brewery: p.breweryName, style: meta?.style ?? null, abv: meta?.abv ?? null,
     format: p.format, price: p.price, image: meta?.image ?? null, branch, score: Math.round(score * 100) / 100, reasons,
-    seenAt: p.seenAt, stale: fresh.stale, value, breadth: breadthN ?? null, market,
+    seenAt: p.seenAt, stale: fresh.stale, value, breadth: breadthN ?? null, market, canonOpen,
   };
 });
 
-// ── микс: до 2 «повторить» + остальное «новое», добор до limit ───────────────────────
+// ── микс: до 2 «повторить» + discover-квота под канон + «новое», добор до limit ──────
+// Квота discover (TASK-54): 1–2 слота из топа всегда под незакрытый канон с точки — иначе петля
+// самоподтверждения сужает вкус. Канон вне вкусовой модели: визитка > эталон > классика.
+const DISCOVER_QUOTA = 2;
+const CANON_RANK: Record<CanonType, number> = { "brewery-flagship": 0, "style-benchmark": 1, "ru-classic": 2 };
+const CANON_RU: Record<CanonType, string> = {
+  "brewery-flagship": "канон: визитка пивоварни — стоит закрыть",
+  "style-benchmark": "канон: эталон стиля — стоит закрыть",
+  "ru-classic": "канон: классика рос. крафта — стоит закрыть",
+};
+
 let chosen: Rec[];
 const hasSignal = recs.some((r) => r.score >= 0.4 && r.branch !== "repeat") || repeatable.size > 0;
 
 if (profileThin || !hasSignal) {
-  // деградация: профиля мало → highlights впереди, дальше свежее/с ценой; ветка discover
+  // деградация: профиля мало → канон/highlights впереди, дальше свежее/с ценой; ветка discover
   chosen = recs
     .map((r) => {
       const hl = r.beerId ? hlBadge.get(r.beerId) : undefined;
       const s = (hl ? (HL_WEIGHT[hl.badge] ?? 0.3) : 0) + (r.price != null ? 0.05 : 0)
-        + (r.value?.bonus ?? 0) + r.market.bonus;
-      const reasons = hl ? [BADGE_RU[hl.badge] ?? hl.badge] : ["в наличии на точке"];
+        + (r.value?.bonus ?? 0) + r.market.bonus + (r.canonOpen ? 0.5 : 0);
+      const reasons = r.canonOpen ? [CANON_RU[r.canonOpen.canonType]] : (hl ? [BADGE_RU[hl.badge] ?? hl.badge] : ["в наличии на точке"]);
       if (r.value?.reason) reasons.push(r.value.reason);
       reasons.push(...r.market.reasons);
       return { ...r, branch: "discover" as const, score: Math.round(s * 100) / 100, reasons };
@@ -153,10 +171,20 @@ if (profileThin || !hasSignal) {
     .slice(0, limit);
 } else {
   const repeats = recs.filter((r) => r.branch === "repeat" && r.score >= 0.9).sort((a, b) => b.score - a.score);
-  const news = recs.filter((r) => r.branch === "new" && r.score > 0).sort((a, b) => b.score - a.score);
   const head = repeats.slice(0, 2);
-  const rest = news.slice(0, Math.max(0, limit - head.length));
-  chosen = [...head, ...rest];
+
+  // discover-слоты под незакрытый канон (приоритет: тип канона, затем score)
+  const discoverPicks = recs
+    .filter((r) => r.canonOpen)
+    .sort((a, b) => CANON_RANK[a.canonOpen!.canonType] - CANON_RANK[b.canonOpen!.canonType] || b.score - a.score)
+    .slice(0, Math.min(DISCOVER_QUOTA, Math.max(0, limit - head.length)))
+    .map((r) => ({ ...r, branch: "discover" as const, reasons: [CANON_RU[r.canonOpen!.canonType], ...r.reasons] }));
+  const discoverIds = new Set(discoverPicks.map((r) => r.beerId ?? r.beer));
+
+  const news = recs.filter((r) => r.branch === "new" && r.score > 0 && !discoverIds.has(r.beerId ?? r.beer))
+    .sort((a, b) => b.score - a.score);
+  const rest = news.slice(0, Math.max(0, limit - head.length - discoverPicks.length));
+  chosen = [...head, ...discoverPicks, ...rest];
   if (chosen.length < limit) {
     const have = new Set(chosen.map((r) => r.beerId ?? r.beer));
     for (const r of [...news.slice(rest.length), ...repeats.slice(head.length)]) {

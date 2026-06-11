@@ -290,6 +290,16 @@ describe("canon: загрузка/сохранение/дедуп (TASK-52)", ()
       rmSync(dir, { recursive: true, force: true });
     }
   });
+
+  test("bot-canon паспорт: валидный JSON с headline и byType (на реальном каталоге)", () => {
+    if (!existsSync("data/catalog.sqlite")) return;
+    const p = Bun.spawnSync(["bun", "run", "scripts/bot-canon.ts"], { stdout: "pipe", stderr: "pipe" });
+    expect(p.exitCode).toBe(0);
+    const out = JSON.parse(p.stdout.toString());
+    expect(out.mode).toBe("passport");
+    expect(typeof out.headline).toBe("string");
+    expect(out.breweriesTotal).toBeGreaterThan(0);
+  });
 });
 
 describe("catalog-matcher: резолв сорта (на реальном каталоге, read-only)", () => {

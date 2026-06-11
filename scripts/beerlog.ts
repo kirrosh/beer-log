@@ -55,6 +55,16 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog nearby [--city <город>] [--lat <ш> --lng <д>] [--limit 10]",
     argv: S("bot-nearby.ts"),
   },
+  "must-try": {
+    desc: "Канон на точке: что маст-трай ЗДЕСЬ (канон ∩ пул, непробованное вперёд) (TASK-54)",
+    usage: "beerlog must-try --seller <seller> | --brewery <имя> | --style <category>",
+    argv: S("bot-canon.ts"),
+  },
+  canon: {
+    desc: "Паспорт канона: прогресс по типам/стилям (визитки/эталоны/классика, пробовано/всего)",
+    usage: "beerlog canon  (или разрез: --brewery <имя> | --style <category>)",
+    argv: S("bot-canon.ts"),
+  },
   context: {
     desc: "Контекст диалога вкладки (set/get/clear) — что показывали последним",
     usage: "beerlog context set --chat <id> --beer-id <id> [--thread <id>]",
