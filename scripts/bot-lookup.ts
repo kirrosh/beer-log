@@ -15,6 +15,7 @@ import { nameSimilarity } from "@beer-log/catalog-core";
 import { venueIndex, HOME_CITY, type VenueInfo } from "./lib/venue-registry.ts";
 import { loadPersonal, type Tasting } from "./lib/venue-personal.ts";
 import { freshness } from "./lib/provenance.ts";
+import { styleValueMedians, valueSignal } from "./lib/value-index.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const query = process.argv.slice(2).join(" ").trim();
@@ -112,10 +113,10 @@ const venueBySeller = new Map(venues.map((v) => [v.seller, v]));
 const sellerKind = (seller: string): "bar" | "shop" =>
   seller.startsWith("t.me/") ? "bar" : (venueBySeller.get(seller)?.type === "bar" ? "bar" : "shop");
 
-type PlRow = { seller: string | null; price: number | null; format: string | null; seen_at: string };
+type PlRow = { beer_id: string | null; seller: string | null; price: number | null; volume_ml: number | null; format: string | null; seen_at: string };
 const listings = lineupIds.length
   ? (db.query(
-      `SELECT seller, price, format, seen_at FROM price_listings WHERE beer_id IN (${lineupIds.map(() => "?").join(",")})`,
+      `SELECT beer_id, seller, price, volume_ml, format, seen_at FROM price_listings WHERE beer_id IN (${lineupIds.map(() => "?").join(",")})`,
     ).all(...lineupIds) as PlRow[])
   : [];
 
@@ -153,6 +154,38 @@ const places = [...bySeller.entries()].map(([seller, rows]) => {
 
 const retailPriceFrom = places.map((p) => p.priceFrom).filter((p): p is number => p != null);
 
+// 2b. Value-вердикт (#9 «стоит ли брать»): ₽/литр канон-сорта против медианы стиля и против
+// других продавцов того же сорта. Считаем по розничным листингам канона (кег=опт исключаем).
+const valueMedians = styleValueMedians(db);
+const canonRpl = canonical
+  ? listings
+      .filter((r) => r.beer_id === canonical!.id && r.format !== "keg" && r.price != null && r.price > 0 && r.volume_ml != null && r.volume_ml > 0)
+      .map((r) => ({ seller: r.seller, rubPerLitre: Math.round((r.price! * 1000) / r.volume_ml!) }))
+      .sort((a, b) => a.rubPerLitre - b.rubPerLitre)
+  : [];
+// сигнал считаем по самому дешёвому розничному предложению (его и стоит брать)
+const bestVolume = canonical
+  ? listings.find((r) => r.beer_id === canonical!.id && r.format !== "keg" && r.price != null && r.price > 0 && r.volume_ml != null && r.volume_ml > 0 && Math.round((r.price! * 1000) / r.volume_ml!) === canonRpl[0]?.rubPerLitre)
+  : undefined;
+const valueVerdict = bestVolume
+  ? valueSignal(
+      { price: bestVolume.price, volumeMl: bestVolume.volume_ml, category: canonical!.style_category },
+      valueMedians,
+    )
+  : null;
+const value = valueVerdict && {
+  category: canonical!.style_category,
+  rubPerLitre: valueVerdict.rubPerLitre,
+  styleMedianPerLitre: valueVerdict.median,
+  deviationPct: Math.round(valueVerdict.deviation * 100), // <0 дешевле медианы
+  kind: valueVerdict.kind,
+  reason: valueVerdict.reason,
+  // разброс по другим продавцам того же сорта (₽/литр): есть ли смысл искать дешевле
+  sellers: canonRpl.length,
+  cheapestPerLitre: canonRpl[0]?.rubPerLitre ?? null,
+  dearestPerLitre: canonRpl.at(-1)?.rubPerLitre ?? null,
+};
+
 // 3. Личный вердикт — по любому сорту линейки (или близкому имени).
 const { tastings } = loadPersonal();
 const idSet = new Set(lineupIds);
@@ -175,6 +208,7 @@ const out = {
   })),
   whereToFind: places,
   retailPriceFrom: retailPriceFrom.length ? Math.min(...retailPriceFrom) : null,
+  value,
   verdict: verdict && {
     verdict: verdict.verdict, favorite: verdict.favorite, wouldRepeat: verdict.wouldRepeat,
     venue: verdict.venue, format: verdict.format, descriptors: verdict.descriptors,

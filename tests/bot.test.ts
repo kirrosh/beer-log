@@ -9,6 +9,7 @@ import { haversineKm, mapUrlFor } from "../scripts/lib/venue-registry.ts";
 import { tasteProfile, type BeerMeta, type Tasting } from "../scripts/lib/venue-personal.ts";
 import { buildMatcher } from "../scripts/lib/catalog-matcher.ts";
 import { parseQuery, runFilter } from "../scripts/lib/query-filter.ts";
+import { valueSignal, styleValueMedians, type StyleMedian } from "../scripts/lib/value-index.ts";
 
 const NOW = new Date("2026-06-06T00:00:00Z");
 
@@ -145,6 +146,54 @@ describe("query-filter: SQL по пулу + деградация (TASK-32 #2)", 
     expect(r.relaxed).not.toContain("style"); // ядро сохранено
     expect(r.count).toBe(1);
     expect(r.items[0]!.style).toBe("sour-wild");
+  });
+});
+
+describe("value-index: ₽/литр против медианы стиля (TASK-50)", () => {
+  const medians = new Map<string, StyleMedian>([["ipa", { median: 1311, n: 990 }]]);
+
+  test("дешевле медианы на ≥10% → kind=value, бонус положительный", () => {
+    const cheap = valueSignal({ price: 370, volumeMl: 450, category: "ipa" }, medians)!; // ~822 ₽/л
+    expect(cheap.kind).toBe("value");
+    expect(cheap.reason).toContain("выгодно");
+    expect(cheap.bonus).toBeGreaterThan(0);
+  });
+
+  test("дороже медианы на ≥25% → kind=overpay, бонус отрицательный", () => {
+    const dear = valueSignal({ price: 900, volumeMl: 450, category: "ipa" }, medians)!; // 2000 ₽/л, +53%
+    expect(dear.kind).toBe("overpay");
+    expect(dear.reason).toContain("переплата");
+    expect(dear.bonus).toBeLessThan(0);
+  });
+
+  test("в норме (±) → kind=fair, reason=null", () => {
+    const fair = valueSignal({ price: 600, volumeMl: 450, category: "ipa" }, medians)!; // ~1333 ₽/л, +2%
+    expect(fair.kind).toBe("fair");
+    expect(fair.reason).toBeNull();
+  });
+
+  test("деградация: нет категории/объёма/цены или нет медианы стиля → null", () => {
+    expect(valueSignal({ price: 590, volumeMl: 450, category: null }, medians)).toBeNull();
+    expect(valueSignal({ price: 590, volumeMl: 450, category: "unknown" }, medians)).toBeNull();
+    expect(valueSignal({ price: 590, volumeMl: null, category: "ipa" }, medians)).toBeNull();
+    expect(valueSignal({ price: 0, volumeMl: 450, category: "ipa" }, medians)).toBeNull();
+    expect(valueSignal({ price: 590, volumeMl: 450, category: "stout-porter" }, medians)).toBeNull(); // нет в medians
+  });
+
+  test("styleValueMedians (на реальном каталоге, read-only): отбрасывает редкие стили", () => {
+    const DB = "data/catalog.sqlite";
+    if (!existsSync(DB)) return;
+    const db = new Database(DB, { readonly: true });
+    try {
+      const m = styleValueMedians(db);
+      expect(m.size).toBeGreaterThan(0);
+      for (const sm of m.values()) {
+        expect(sm.n).toBeGreaterThanOrEqual(8); // VALUE_MIN_SAMPLE
+        expect(sm.median).toBeGreaterThan(0);
+      }
+    } finally {
+      db.close();
+    }
   });
 });
 

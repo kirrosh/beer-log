@@ -12,6 +12,7 @@
 import { Database } from "bun:sqlite";
 import { buildVenuePersonal, loadPersonal, loadBeerMeta, tasteProfile } from "./lib/venue-personal.ts";
 import { ageDays, freshness } from "./lib/provenance.ts";
+import { styleValueMedians, valueSignal, type ValueSignal } from "./lib/value-index.ts";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 
@@ -53,6 +54,8 @@ if (poolIds.length) {
   ).all(...poolIds) as { id: string; image_url: string | null; abv: number | null; style_name: string | null }[];
   for (const r of rows) metaById.set(r.id, { image: r.image_url, abv: r.abv, style: r.style_name });
 }
+// Value Index: медианы ₽/литр по стилям — рыночный сигнал «выгодно/переплата» (TASK-50)
+const valueMedians = styleValueMedians(db);
 db.close();
 
 const HL_WEIGHT: Record<string, number> = { "must-try": 0.5, "hidden-gem": 0.4, value: 0.3, seasonal: 0.3 };
@@ -68,6 +71,7 @@ type Rec = {
   abv: number | null; format: string; price: number | null; image: string | null;
   branch: "repeat" | "new" | "discover"; score: number; reasons: string[];
   seenAt: string; stale: boolean;   // свежесть наличия — кран ротируется, предупреждаем у полки
+  value: ValueSignal | null;        // ₽/литр vs медиана стиля (TASK-50)
 };
 
 const recs: Rec[] = pool.map((p) => {
@@ -76,6 +80,9 @@ const recs: Rec[] = pool.map((p) => {
   const reasons: string[] = [];
   let score = 0;
   let branch: Rec["branch"] = "new";
+
+  // Value Index: ₽/литр этого листинга против медианы стиля (объективный денежный сигнал)
+  const value = valueSignal({ price: p.price, volumeMl: p.volumeMl, category: cat }, valueMedians);
 
   const tasted = !!p.beerId && tastedSet.has(p.beerId);
   if (tasted && p.beerId && repeatable.has(p.beerId)) {
@@ -98,12 +105,19 @@ const recs: Rec[] = pool.map((p) => {
     reasons.push("уже пробовал");
   }
 
+  // value влияет на скоринг только для «нового» (не двигаем приоритет повторов), но фразу
+  // (выгодно/переплата) показываем у любой ветки — честный денежный аргумент/минус у полки
+  if (value) {
+    if (branch === "new") score += value.bonus;
+    if (value.reason) reasons.push(value.reason);
+  }
+
   const fresh = freshness(p.seenAt);
   return {
     beerId: p.beerId, beer: p.breweryName ? `${p.breweryName} ${p.beerName}` : p.beerName,
     brewery: p.breweryName, style: meta?.style ?? null, abv: meta?.abv ?? null,
     format: p.format, price: p.price, image: meta?.image ?? null, branch, score: Math.round(score * 100) / 100, reasons,
-    seenAt: p.seenAt, stale: fresh.stale,
+    seenAt: p.seenAt, stale: fresh.stale, value,
   };
 });
 
@@ -116,8 +130,9 @@ if (profileThin || !hasSignal) {
   chosen = recs
     .map((r) => {
       const hl = r.beerId ? hlBadge.get(r.beerId) : undefined;
-      const s = (hl ? (HL_WEIGHT[hl.badge] ?? 0.3) : 0) + (r.price != null ? 0.05 : 0);
+      const s = (hl ? (HL_WEIGHT[hl.badge] ?? 0.3) : 0) + (r.price != null ? 0.05 : 0) + (r.value?.bonus ?? 0);
       const reasons = hl ? [BADGE_RU[hl.badge] ?? hl.badge] : ["в наличии на точке"];
+      if (r.value?.reason) reasons.push(r.value.reason);
       return { ...r, branch: "discover" as const, score: Math.round(s * 100) / 100, reasons };
     })
     .sort((a, b) => b.score - a.score || (b.price != null ? 1 : 0) - (a.price != null ? 1 : 0))

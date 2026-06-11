@@ -1,9 +1,10 @@
 ---
 id: TASK-50
 title: 'Value Index: ₽/литр против медианы стиля в скоринге и причинах'
-status: To Do
+status: Done
 assignee: []
 created_date: '2026-06-11 09:47'
+updated_date: '2026-06-11 10:03'
 labels:
   - personal
   - recommendations
@@ -26,8 +27,8 @@ priority: high
 
 ## Acceptance Criteria
 <!-- AC:BEGIN -->
-- [ ] #1 Функция/SQL медианы ₽-за-литр по style_category (учитываются только листинги с price и volume_ml; web и untappd-menu source_type)
-- [ ] #2 bot-recommend.ts: отклонение от медианы стиля попадает в score (бонус value) и в reasons[] человекочитаемой фразой
-- [ ] #3 Интент #9 «стоит ли брать» включает value-вердикт: цена этого листинга vs медиана стиля и vs другие продавцы того же сорта
-- [ ] #4 Graceful degradation: пустой style_category или volume_ml → сигнал просто пропускается без ошибки
+- [x] #1 Функция/SQL медианы ₽-за-литр по style_category (учитываются только листинги с price и volume_ml; web и untappd-menu source_type)
+- [x] #2 bot-recommend.ts: отклонение от медианы стиля попадает в score (бонус value) и в reasons[] человекочитаемой фразой
+- [x] #3 Интент #9 «стоит ли брать» включает value-вердикт: цена этого листинга vs медиана стиля и vs другие продавцы того же сорта
+- [x] #4 Graceful degradation: пустой style_category или volume_ml → сигнал просто пропускается без ошибки
 <!-- AC:END -->

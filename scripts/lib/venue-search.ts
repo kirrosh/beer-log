@@ -49,6 +49,7 @@ export type PoolItem = {
   styleSlug: string | null;  // для замены по стилю (B4 substitution)
   styleCategory: string | null;
   price: number | null;
+  volumeMl: number | null;   // объём листинга — для ₽/литр (Value Index, TASK-50)
   sourceType: string | null; // провенанс наблюдения (см. lib/provenance.ts)
   seenAt: string;            // дата наблюдения
 };
@@ -140,7 +141,7 @@ export function buildPool(db: Database, seller: string): PoolItem[] {
   const matcher = buildMatcher(db);
   const rows = db.query(`
     SELECT pl.beer_id AS beerId, pl.beer_name_raw AS raw, pl.format AS format,
-           pl.price AS price, pl.source_type AS sourceType, pl.seen_at AS seenAt,
+           pl.price AS price, pl.volume_ml AS volumeMl, pl.source_type AS sourceType, pl.seen_at AS seenAt,
            b.name AS beerName, b.brewery_id AS brewBeerId,
            b.style_slug AS styleSlug, b.style_category AS styleCategory,
            br.name AS brewName
@@ -150,7 +151,7 @@ export function buildPool(db: Database, seller: string): PoolItem[] {
     WHERE pl.seller = ?
   `).all(seller) as {
     beerId: string | null; raw: string; format: string;
-    price: number | null; sourceType: string | null; seenAt: string;
+    price: number | null; volumeMl: number | null; sourceType: string | null; seenAt: string;
     beerName: string | null; brewBeerId: string | null; brewName: string | null;
     styleSlug: string | null; styleCategory: string | null;
   }[];
@@ -173,7 +174,7 @@ export function buildPool(db: Database, seller: string): PoolItem[] {
       beerName, beerNameNorm: normalizeName(beerName), rawNorm: normalizeName(r.raw),
       format: r.format || "unknown",
       styleSlug: r.styleSlug, styleCategory: r.styleCategory,
-      price: r.price, sourceType: r.sourceType, seenAt: r.seenAt,
+      price: r.price, volumeMl: r.volumeMl, sourceType: r.sourceType, seenAt: r.seenAt,
     };
     const key = r.beerId ?? `raw:${item.rawNorm}`;
     const prev = byKey.get(key);
