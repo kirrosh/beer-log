@@ -3,7 +3,7 @@
  * HOME_CITY) с маркерами и ссылкой на карту к каждой. Бары — впереди, дальше по объёму ассортимента.
  *
  * Вход:  bun run scripts/bot-nearby.ts [--city "<город>"] [--lat <ш>] [--lng <д>] [--limit 10]
- * Выход: компактный JSON — venues[] (name/seller/type/poolSize/mapUrl/markers[, distanceKm]).
+ * Выход: компактный JSON — venues[] (name/seller/type/poolSize/mapUrl/markers/lat/lng[, distanceKm]).
  *
  * Честная рамка (TASK-42/41): координат у точек пока почти нет, а форк-плагина Telegram НЕ
  * передаёт геолокацию пользователя — поэтому радиус по live-локации сейчас неактивен. Если координаты
@@ -68,6 +68,8 @@ const out = {
   venues: withDist.slice(0, limit).map(({ v, dist }) => ({
     name: v.name, seller: v.seller, type: v.type, poolSize: v.poolSize,
     mapUrl: v.mapUrl, markers: markers(v), distanceKm: dist,
+    // координаты точки — для <tg-map> в rich-ответе бота (null = карты в сообщении не будет)
+    lat: v.lat, lng: v.lng,
   })),
 };
 console.log(JSON.stringify(out));
