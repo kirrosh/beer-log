@@ -70,6 +70,11 @@ const COMMANDS: Record<string, Cmd> = {
     usage: "beerlog context set --chat <id> --beer-id <id> [--thread <id>]",
     argv: S("bot-context.ts"),
   },
+  pending: {
+    desc: "Петля «как тебе вчерашнее?»: очередь беру/пробую → вопрос назавтра (TASK-55)",
+    usage: `beerlog pending add --json '{"beer":"…","chat":"…"}' | list | ask [--dry-run] | close --id <id>`,
+    argv: S("pending-tasting.ts"),
+  },
   shelf: {
     desc: "Записать наличие точки из распознанного фото-борда (source ai-vision)",
     usage: "beerlog shelf …",
