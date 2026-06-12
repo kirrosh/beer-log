@@ -1,7 +1,14 @@
-# Backlog — Beer Log
+---
+id: doc-2
+title: 'Roadmap: фокус и история майлстоунов (M1–M4)'
+type: other
+created_date: '2026-06-12 08:41'
+updated_date: '2026-06-12 08:43'
+---
+Исторический снимок фокуса/майлстоунов (перенесён из корневого Backlog.md 2026-06-12). Статусы задач в таблицах — снапшот на момент правок файла; актуальные статусы — `backlog task list --plain` / `backlog board`. Текущие майлстоуны см. `backlog milestone list --plain` (появился M5, здесь не отражён).
 
-Задачи ведутся через [Backlog.md](https://github.com/MrLesk/Backlog.md).
-Файлы задач — в `backlog/tasks/` (id = `task-<#>`). Доска: `backlog board`.
+---
+
 Модель источников по слоям — `vault/product/sourcing-strategy.md`.
 
 ## 🎯 Текущий фокус — M4: Поиск на точке (Craft Locator)
