@@ -6,6 +6,7 @@
       "Agent",
       "mcp__plugin_telegram_telegram__reply",
       "mcp__plugin_telegram_telegram__edit_message",
+      "mcp__plugin_telegram_telegram__stream_draft",
       "mcp__plugin_telegram_telegram__react",
       "mcp__plugin_telegram_telegram__download_attachment",
       "mcp__plugin_telegram_telegram__create_topic",
