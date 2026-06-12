@@ -15,6 +15,8 @@
 // }
 import { openDb, stats } from "@beer-log/store";
 import { categorizeStyle, slugify } from "@beer-log/catalog-core";
+import { mkdir, rename } from "node:fs/promises";
+import { dirname, join, basename } from "node:path";
 
 const DB_PATH = process.env.DB_PATH ?? "data/catalog.sqlite";
 const OVERRIDES = "data/pipeline/overrides.json";
@@ -40,7 +42,7 @@ const beerBy = (brewId: string, slug: string) =>
     { id: string; name: string; slug: string; aliases: string; status: string } | null;
 
 let nValidated = 0, nMerged = 0, nDropped = 0, nReview = 0;
-const reviewLedger: Record<string, { reason: string; at: string }[]> = {};
+const reviewLedger: Record<string, { slug: string; reason: string; at: string }[]> = {};
 const today = new Date().toISOString().slice(0, 10);
 
 for (const f of files) {
@@ -88,7 +90,7 @@ for (const f of files) {
     }
     // review: спорные → overrides needs-review (человеку)
     for (const r of d.review ?? []) {
-      (reviewLedger[d.brewery] ??= []).push({ reason: r.reason, at: today });
+      (reviewLedger[d.brewery] ??= []).push({ slug: r.slug, reason: r.reason, at: today });
       nReview++;
     }
   }
@@ -101,9 +103,30 @@ if (Object.keys(reviewLedger).length) {
   ov.breweries ??= {};
   for (const [slug, items] of Object.entries(reviewLedger)) {
     ov.breweries[slug] ??= {};
-    ov.breweries[slug].needsReview = [...(ov.breweries[slug].needsReview ?? []), ...items];
+    const existing = ov.breweries[slug].needsReview ?? [];
+    // дедуп по slug сорта: повторная пометка того же спорного не плодит записи
+    const seen = new Set(existing.map((e: { slug?: string }) => e.slug).filter(Boolean));
+    const fresh = items.filter((it) => !it.slug || !seen.has(it.slug));
+    ov.breweries[slug].needsReview = [...existing, ...fresh];
   }
   await Bun.write(OVERRIDES, JSON.stringify(ov, null, 2));
+}
+
+// Архивируем применённые файлы в applied/, чтобы повторный прогон по ВСЕЙ папке
+// (`promote-sorts.ts data/pipeline/promotions/`) их НЕ переприменял. Без этого
+// накопленные файлы прошлых сессий раздувают needsReview (инцидент 2026-06-12:
+// 0→175 за один прогон). Glob `*.json` не рекурсивен → applied/ не сканируется.
+const srcDir = arg.endsWith(".json") ? dirname(arg) : arg;
+const archiveDir = join(srcDir, "applied");
+const toArchive = files.filter((f) => !dirname(f).endsWith("applied"));
+if (toArchive.length) {
+  await mkdir(archiveDir, { recursive: true });
+  for (const f of toArchive) {
+    let dest = join(archiveDir, basename(f));
+    if (await Bun.file(dest).exists()) dest = join(archiveDir, `${Date.now()}-${basename(f)}`);
+    await rename(f, dest);
+  }
+  console.log(`архивировано в applied/: ${toArchive.length}`);
 }
 
 console.log(`promote: validated ${nValidated} | merged ${nMerged} | dropped ${nDropped} | review ${nReview}`);
