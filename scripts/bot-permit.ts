@@ -11,7 +11,10 @@
 // в его аргументах НЕТ шелл-операторов/подстановок (`; & | ` $() <>`). Любой
 // хвост (`… ; rm -rf`) → не матчится → падает в обычный промпт (fail-safe).
 
-const REGISTRY = "/Users/kirrotech/.claude/tg-tabs/registry.ts";
+import { homedir } from "node:os";
+import { resolve } from "node:path";
+
+const REGISTRY = resolve(homedir(), ".claude/tg-tabs/registry.ts");
 
 // Скрипты бота, которые можно гонять без подтверждения (чтение + курируемые записи).
 const SCRIPTS = [

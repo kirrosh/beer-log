@@ -22,7 +22,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bun '/Users/kirrotech/Documents/Claude/Projects/Beer Log/scripts/bot-permit.ts'"
+            "command": "bun '/Users/kirillkoshelev/assistant/beer-log/scripts/bot-permit.ts'"
           }
         ]
       }

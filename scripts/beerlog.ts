@@ -8,9 +8,10 @@
 //   bun run scripts/beerlog.ts lookup "Атомная Прачечная"
 //   bun run scripts/beerlog.ts query "select name,abv from beers limit 3"
 import { resolve } from "node:path";
+import { homedir } from "node:os";
 
 const HERE = import.meta.dir;
-const REGISTRY = "/Users/kirrotech/.claude/tg-tabs/registry.ts";
+const REGISTRY = resolve(homedir(), ".claude/tg-tabs/registry.ts");
 const S = (f: string) => ["run", resolve(HERE, f)]; // `bun run scripts/<f>`
 
 type Cmd = { desc: string; usage: string; argv: string[] };
