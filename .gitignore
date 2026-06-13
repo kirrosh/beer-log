@@ -21,6 +21,10 @@ data/.secrets/
 *.sqlite-wal
 *.sqlite-shm
 
+# главная БД каталога (~20МБ, данные-of-record): вне git, бэкап через снапшоты (TASK-66).
+# rewort-*.sqlite (мелкие, трекаются) НЕ затрагиваем.
+data/catalog.sqlite
+
 # локальные снапшоты БД (scripts/backup-db.ts)
 backups/
 
