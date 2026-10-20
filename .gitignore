@@ -36,3 +36,9 @@ data/personal/.pending-tastings.json
 
 # граф знаний graphify — локальный артефакт, детерминированно пересобирается `graphify .` (AST, без ключа)
 graphify-out/
+
+# scraped catalog data is not published
+/data/*
+!/data/personal/
+packages/web/src/lib/data/catalog.json
+packages/web/src/lib/data/digest.json
